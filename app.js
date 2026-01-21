@@ -30,7 +30,7 @@ const APP_STATE = {
 async function initApp() {
     console.log('🚀 [APP-INIT] Starting Mandarin Quest...');
     try {
-        const response = await fetch('data.json?v=' + Date.now());
+        const response = await fetch('./data.json?v=' + Date.now());
         if (!response.ok) {
             throw new Error(`Failed to load data.json: ${response.status}`);
         }
@@ -227,7 +227,7 @@ function createBookElement(lesson, index) {
     book.className = `book-card ${isUnlocked ? 'unlocked' : 'locked'}`;
     book.dataset.lessonId = lesson.lessonId;
     
-    const coverImg = lesson.imagePath || 'images/placeholder.png';
+    const coverImg = lesson.imagePath || './images/placeholder.png';
     const filterClass = isUnlocked ? '' : 'grayscale';
     
     book.innerHTML = `
@@ -357,7 +357,7 @@ async function renderLesson() {
     }
     
     try {
-        const imageUrl = APP_STATE.currentLesson.imagePath || 'images/placeholder.png';
+        const imageUrl = APP_STATE.currentLesson.imagePath || './images/placeholder.png';
         
         container.innerHTML = `
             <!-- Background Scenery -->
