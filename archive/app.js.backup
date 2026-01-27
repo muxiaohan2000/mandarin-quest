@@ -1,0 +1,458 @@
+// =============================================================================
+// MANDARIN QUEST - Game Engine (Standalone Version)
+// Migrated from Google Apps Script to Vanilla JavaScript
+// =============================================================================
+
+// === GLOBAL STATE ===
+let currentLesson = null;
+let currentPage = 0;
+let totalPages = 0;
+let charProgress = {};
+
+// === DATA LOADING ===
+
+/**
+ * Fetch all lessons from data.json
+ * @returns {Promise<Array>} Array of lesson objects
+ */
+async function loadAllLessons() {
+    try {
+        const response = await fetch('data.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load data.json: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error loading lessons:', error);
+        return [];
+    }
+}
+
+/**
+ * Load a specific lesson by ID
+ * @param {string|number} lessonId - The lesson identifier
+ * @returns {Promise<Object|null>} The lesson object or null if not found
+ */
+async function loadLesson(lessonId) {
+    const lessons = await loadAllLessons();
+    return lessons.find(lesson => lesson.lessonId === lessonId) || null;
+}
+
+// === MAIN RENDER FUNCTION ===
+
+/**
+ * Main entry point: Render a lesson by ID
+ * Replaces the GAS doGet() function
+ * @param {string|number} lessonId - The lesson to render
+ */
+async function renderLesson(lessonId) {
+    // Load lesson data
+    currentLesson = await loadLesson(lessonId);
+    
+    if (!currentLesson) {
+        document.body.innerHTML = `
+            <div style="color: white; text-align: center; margin-top: 50px;">
+                <h3>Error: Lesson "${lessonId}" not found.</h3>
+            </div>`;
+        return;
+    }
+    
+    // Check if lesson was previously completed
+    const isCompleted = checkLessonCompletion(lessonId);
+    const lessonState = isCompleted ? '已完成' : '新课程';
+    
+    console.log(`📖 Loading Lesson: ${currentLesson.title} [${lessonState}]`);
+    
+    // Build the game UI
+    buildGameUI();
+    
+    // Initialize game state
+    initializeGame();
+}
+
+// === UI CONSTRUCTION ===
+
+/**
+ * Build the complete game interface
+ * Mirrors the structure from Lesson_html
+ */
+function buildGameUI() {
+    // Load local image file
+    const imageUrl = currentLesson.imagePath || 'images/placeholder.png';
+    
+    document.body.innerHTML = `
+        <!-- Background Scenery -->
+        <div id="scenery" style="background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('${imageUrl}');">
+            <img src="${imageUrl}" 
+                 style="display:none;" 
+                 onerror="console.error('❌ Failed to load image: ${imageUrl}'); this.parentElement.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(https://via.placeholder.com/1200x800?text=Image+Load+Error)';"
+                 onload="console.log('✅ Image loaded successfully')">
+        </div>
+
+        <!-- Entry/Start Page -->
+        <div id="entry-page">
+            <h1 id="ui-title" style="color: white; font-size: 3.5rem; margin-bottom: 30px; text-shadow: 2px 2px 15px #000; font-family: 'Noto Sans SC', sans-serif;">
+                ${currentLesson.title}
+            </h1>
+            <button class="start-btn" onclick="startGame()">开始阅读</button>
+        </div>
+
+        <!-- Main Game Container (Initially Hidden) -->
+        <div id="main-game-container">
+            <!-- HUD: Hero Name + Character Tracker -->
+            <div id="hud">
+                <div class="hero-name" id="ui-hero">${currentLesson.hero}</div>
+                <div class="task-box" id="ui-inventory"></div>
+            </div>
+
+            <!-- Story Book Viewport -->
+            <div id="book-viewport">
+                <div id="page-wrapper"></div>
+            </div>
+        </div>
+
+        <!-- Vocabulary Popup (Sensei Guide) -->
+        <div id="p-overlay" onclick="closePopup()"></div>
+        <div id="popup">
+            <div style="font-size:2.5rem;">🏮</div>
+            <h2 id="p-word" style="color:var(--red-ink); margin:10px 0;"></h2>
+            <div id="p-pinyin" style="color:#666; font-style:italic;"></div>
+            <p id="p-mean" style="font-size:1.3rem;"></p>
+            <button onclick="closePopup()" style="margin-top:20px; padding:10px 20px; cursor:pointer;">关闭</button>
+        </div>
+
+        <!-- Victory Fireworks -->
+        <div id="firework-overlay">
+            <div class="victory-text">你真棒!</div>
+        </div>
+    `;
+}
+
+// === GAME INITIALIZATION ===
+
+/**
+ * Initialize game state and UI elements
+ * Ported from the window.onload init() function
+ */
+function initializeGame() {
+    // Reset state
+    charProgress = {};
+    currentPage = 0;
+    
+    // Setup Character Tracker (Inventory)
+    setupCharacterTracker();
+    
+    // Build Interactive Story
+    buildInteractiveStory();
+}
+
+/**
+ * Setup the character tracker HUD
+ * Mirrors the tracker logic from Lesson_html
+ */
+function setupCharacterTracker() {
+    const inventory = document.getElementById('ui-inventory');
+    inventory.innerHTML = '';
+    
+    currentLesson.seekCharacters.forEach(char => {
+        // Count total occurrences in story
+        const regex = new RegExp(char, 'g');
+        const matches = currentLesson.storyText.match(regex);
+        const totalCount = matches ? matches.length : 0;
+        
+        // Initialize progress tracking
+        charProgress[char] = { found: 0, total: totalCount };
+        
+        // Create tracker slot
+        inventory.innerHTML += `
+            <div class="char-slot" id="slot-${char}">
+                <div class="char-main">${char}</div>
+                <div class="char-count" id="count-${char}">0/${totalCount}</div>
+            </div>`;
+    });
+}
+
+/**
+ * Build the interactive story HTML
+ * CRITICAL: Ported from buildStoryHtml() in Lesson_html
+ */
+function buildInteractiveStory() {
+    const storyHtml = buildStoryHtml(
+        currentLesson.storyText,
+        currentLesson.pinyinText,
+        currentLesson.vocabToExplain,
+        currentLesson.seekCharacters
+    );
+    
+    document.getElementById('page-wrapper').innerHTML = storyHtml;
+    
+    // Setup pagination
+    const pages = document.querySelectorAll('.story-page');
+    totalPages = pages.length;
+    
+    if (totalPages > 0) {
+        pages[0].classList.add('visible');
+    }
+}
+
+/**
+ * CORE FUNCTION: Build interactive story HTML with vocab highlighting
+ * Direct port from Lesson_html buildStoryHtml()
+ * 
+ * @param {string} text - The story text
+ * @param {string} pinyin - Space-separated pinyin
+ * @param {Array} vocabList - Array of {character, pinyin, definition}
+ * @param {Array} hiddenChars - Characters to make clickable for the hunt
+ * @returns {string} HTML string with interactive elements
+ */
+function buildStoryHtml(text, pinyin, vocabList, hiddenChars) {
+    const lines = text.split('\n').filter(l => l.trim() !== "");
+    const pinyinWords = pinyin.trim().split(/\s+/);
+    let pIdx = 0;
+    let htmlOut = "";
+
+    lines.forEach((line, pageIdx) => {
+        htmlOut += `<div class="story-page" id="pg-${pageIdx}"><div>`;
+        let i = 0;
+        
+        while (i < line.length) {
+            // THE SENSEI GUIDE: Check if current position starts a vocab word
+            const vocab = vocabList.find(v => line.substr(i).startsWith(v.character));
+            
+            if (vocab) {
+                // Wrap vocab word with special class for popup trigger
+                htmlOut += `<span class="vocab-word" onclick="showPopup('${escapeHtml(vocab.character)}','${escapeHtml(vocab.definition)}','${escapeHtml(vocab.pinyin)}')">`;
+                
+                for (let k = 0; k < vocab.character.length; k++) {
+                    htmlOut += renderChar(line[i + k], pinyinWords[pIdx] || "", hiddenChars);
+                    if (/[\u4e00-\u9fa5]/.test(line[i + k])) pIdx++;
+                }
+                
+                htmlOut += `</span>`;
+                i += vocab.character.length;
+            } else {
+                // Regular character
+                htmlOut += renderChar(line[i], pinyinWords[pIdx] || "", hiddenChars);
+                if (/[\u4e00-\u9fa5]/.test(line[i])) pIdx++;
+                i++;
+            }
+        }
+        
+        htmlOut += `</div></div>`;
+    });
+    
+    return htmlOut;
+}
+
+/**
+ * Render a single character with ruby annotation
+ * THE CHARACTER HUNT: Marks seekable characters as interactive
+ * Direct port from Lesson_html renderChar()
+ * 
+ * @param {string} char - The character to render
+ * @param {string} pinyin - Pinyin annotation
+ * @param {Array} hiddenList - List of characters to make clickable
+ * @returns {string} HTML string for the character
+ */
+function renderChar(char, pinyin, hiddenList) {
+    // Only process Chinese characters
+    if (/[\u4e00-\u9fa5]/.test(char)) {
+        const isHidden = hiddenList.includes(char);
+        const className = isHidden ? 'hidden-char' : '';
+        const onClick = isHidden ? `onclick="captureCharacter(this,'${char}',event)"` : '';
+        
+        return `<ruby class="${className}" ${onClick}>${char}<rt>${pinyin}</rt></ruby>`;
+    }
+    
+    // Non-Chinese characters (punctuation, etc.)
+    return `<span>${char}</span>`;
+}
+
+/**
+ * Escape HTML special characters for safe insertion
+ */
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// === GAME INTERACTION ===
+
+/**
+ * Start the game (hide entry page, show game)
+ * Called when user clicks "开始阅读" button
+ */
+function startGame() {
+    document.getElementById('entry-page').style.display = 'none';
+    
+    const game = document.getElementById('main-game-container');
+    game.style.display = 'block';
+    
+    setTimeout(() => {
+        game.style.opacity = '1';
+    }, 10);
+}
+
+/**
+ * SPARKLE ANIMATION: Handle character capture with visual feedback
+ * Direct port from Lesson_html capture() function
+ * 
+ * @param {HTMLElement} el - The clicked element
+ * @param {string} char - The character that was clicked
+ * @param {Event} event - The click event (for sparkle positioning)
+ */
+function captureCharacter(el, char, event) {
+    // Prevent re-capture of already found characters
+    if (el.classList.contains('found')) return;
+    
+    // --- CREATE SPARKLE BURST ---
+    for (let i = 0; i < 12; i++) {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle';
+        
+        // Position at click location
+        sparkle.style.left = event.clientX + 'px';
+        sparkle.style.top = event.clientY + 'px';
+        
+        // Randomize direction and distance
+        const tx = (Math.random() - 0.5) * 200 + "px";
+        const ty = (Math.random() - 0.5) * 200 + "px";
+        sparkle.style.setProperty('--tx', tx);
+        sparkle.style.setProperty('--ty', ty);
+        
+        // Apply animation
+        sparkle.style.animation = `sparkle-out ${0.5 + Math.random()}s forwards`;
+        
+        document.body.appendChild(sparkle);
+        setTimeout(() => sparkle.remove(), 1500);
+    }
+    
+    // --- CHARACTER LOGIC ---
+    el.classList.add('found');
+    
+    let stats = charProgress[char];
+    stats.found++;
+    
+    // Update tracker display
+    document.getElementById(`count-${char}`).innerText = `${stats.found}/${stats.total}`;
+    
+    // Mark slot as complete if all instances found
+    if (stats.found >= stats.total) {
+        document.getElementById(`slot-${char}`).classList.add('done');
+        checkWinCondition();
+    }
+}
+
+/**
+ * Check if all characters have been found
+ * Replaces google.script.run call with localStorage
+ */
+function checkWinCondition() {
+    const allDone = Object.values(charProgress).every(s => s.found >= s.total);
+    
+    if (allDone) {
+        // Show victory animation
+        const firework = document.getElementById('firework-overlay');
+        firework.style.display = 'flex';
+        
+        // Save completion to localStorage
+        saveLessonCompletion(currentLesson.lessonId);
+        
+        // Hide fireworks after 5 seconds
+        setTimeout(() => {
+            firework.style.display = 'none';
+        }, 5000);
+    }
+}
+
+/**
+ * Show vocabulary definition popup (Sensei Guide)
+ * Called when user clicks on a vocab word
+ */
+function showPopup(word, definition, pinyin) {
+    document.getElementById('p-word').innerText = word;
+    document.getElementById('p-pinyin').innerText = pinyin;
+    document.getElementById('p-mean').innerText = definition;
+    document.getElementById('popup').style.display = 'block';
+    document.getElementById('p-overlay').style.display = 'block';
+}
+
+/**
+ * Close the vocabulary popup
+ */
+function closePopup() {
+    document.getElementById('popup').style.display = 'none';
+    document.getElementById('p-overlay').style.display = 'none';
+}
+
+// === LOCALSTORAGE PROGRESS TRACKING ===
+// Replaces google.script.run spreadsheet updates
+
+const STORAGE_KEY = 'mandarin_quest_progress';
+
+/**
+ * Get all completed lesson IDs from localStorage
+ * @returns {Array} Array of completed lesson IDs
+ */
+function getCompletedLessons() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+}
+
+/**
+ * Check if a specific lesson has been completed
+ * @param {string|number} lessonId - The lesson to check
+ * @returns {boolean} True if completed
+ */
+function checkLessonCompletion(lessonId) {
+    const completed = getCompletedLessons();
+    return completed.includes(String(lessonId));
+}
+
+/**
+ * Save lesson completion to localStorage
+ * @param {string|number} lessonId - The lesson that was completed
+ */
+function saveLessonCompletion(lessonId) {
+    const completed = getCompletedLessons();
+    const lessonIdStr = String(lessonId);
+    
+    if (!completed.includes(lessonIdStr)) {
+        completed.push(lessonIdStr);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
+        console.log(`✅ Lesson "${lessonIdStr}" marked as complete!`);
+    }
+}
+
+/**
+ * Clear all progress (for testing or reset)
+ */
+function clearAllProgress() {
+    localStorage.removeItem(STORAGE_KEY);
+    console.log('🗑️ All progress cleared');
+}
+
+// === GLOBAL FUNCTION EXPOSURE ===
+// Make functions available to onclick handlers in HTML
+
+window.startGame = startGame;
+window.captureCharacter = captureCharacter;
+window.showPopup = showPopup;
+window.closePopup = closePopup;
+window.renderLesson = renderLesson;
+window.clearAllProgress = clearAllProgress;
+window.getMaskedImage = getMaskedImage; // Expose for testing
+
+// === AUTO-INITIALIZATION ===
+// You can auto-load a lesson on page load, or wait for user selection
+
+// Example: Auto-load first lesson
+// window.addEventListener('DOMContentLoaded', () => {
+//     renderLesson('Group_1');
+// });

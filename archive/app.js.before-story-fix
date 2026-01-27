@@ -16,8 +16,7 @@ const APP_STATE = {
     currentPage: 0,                // Story page index (0-based)
     totalPages: 0,                 // Total pages in story
     charProgress: {},              // Character hunt progress: { char: { found, total }}
-    hintsRemaining: 0,             // Hint system: calculated as 15% of total seek chars
-    maxHints: 0                    // Maximum hints available for current lesson
+    hintsRemaining: 5              // Hint system: 5 hints per lesson
 };
 
 // =============================================================================
@@ -30,7 +29,7 @@ const APP_STATE = {
 async function initApp() {
     console.log('🚀 [APP-INIT] Starting Mandarin Quest...');
     try {
-        const response = await fetch('./data.json?v=' + Date.now());
+        const response = await fetch('data.json');
         if (!response.ok) {
             throw new Error(`Failed to load data.json: ${response.status}`);
         }
@@ -46,45 +45,18 @@ async function initApp() {
         // Render initial view
         switchView('bookshelf');
     } catch (error) {
-        console.error('❌ [APP-INIT] Error loading app:', error);
-        
-        // Show friendly error to user
+        console.error('❌ [APP-INIT]', error);
         const container = document.getElementById('app-container');
-        container.innerHTML = `
-            <div style="
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                min-height: 100vh;
-                padding: 20px;
-                text-align: center;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                font-family: 'Noto Sans SC', sans-serif;
-            ">
-                <div style="font-size: 5rem; margin-bottom: 20px;">📜</div>
-                <h1 style="font-size: 2rem; margin-bottom: 10px;">糟糕！卷轴丢失了...</h1>
-                <p style="font-size: 1.2rem; margin-bottom: 30px; opacity: 0.9;">Oops! The scrolls are lost.</p>
-                <button onclick="location.reload()" style="
-                    padding: 15px 40px;
-                    font-size: 1.2rem;
-                    background: white;
-                    color: #667eea;
-                    border: none;
-                    border-radius: 25px;
-                    cursor: pointer;
-                    font-weight: bold;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                    transition: transform 0.2s;
-                "
-                onmouseover="this.style.transform='scale(1.05)'"
-                onmouseout="this.style.transform='scale(1)'">
-                    🔄 刷新页面 / Refresh
-                </button>
-                <p style="margin-top: 20px; font-size: 0.9rem; opacity: 0.7;">Error: ${error.message}</p>
-            </div>
-        `;
+        if (container) {
+            const isFile = location && location.protocol === 'file:';
+            container.innerHTML = `
+                <div style="padding:20px; color:#fff; background:#222; min-height:100vh;">
+                    <h2 style="margin-bottom:10px;">Failed to load Mandarin Quest</h2>
+                    <p style="margin-bottom:8px;">Reason: ${escapeHtml(String(error.message || error))}</p>
+                    ${isFile ? '<p>Hint: When opening directly from disk, browsers block fetch(). Start a local server and open http://localhost instead.</p>' : ''}
+                    <p>Try: python3 -m http.server 5500 in the project folder, then open http://localhost:5500/index.html</p>
+                </div>`;
+        }
     }
 }
 
@@ -227,7 +199,7 @@ function createBookElement(lesson, index) {
     book.className = `book-card ${isUnlocked ? 'unlocked' : 'locked'}`;
     book.dataset.lessonId = lesson.lessonId;
     
-    const coverImg = lesson.imagePath || './images/placeholder.png';
+    const coverImg = lesson.imagePath || 'images/placeholder.png';
     const filterClass = isUnlocked ? '' : 'grayscale';
     
     book.innerHTML = `
@@ -292,9 +264,9 @@ async function renderBookshelf() {
                 </header>
                 <div class="bookshelf-grid" id="bookshelf-grid"></div>
                 <footer class="bookshelf-footer">
-                    ${window.DEBUG_MODE ? `<button onclick="window.clearAllProgress(); location.reload();" class="reset-btn">
+                    <button onclick="window.clearAllProgress(); location.reload();" class="reset-btn">
                         🔄 Reset Progress (Testing)
-                    </button>` : ''}
+                    </button>
                 </footer>
             </div>
         `;
@@ -357,7 +329,7 @@ async function renderLesson() {
     }
     
     try {
-        const imageUrl = APP_STATE.currentLesson.imagePath || './images/placeholder.png';
+        const imageUrl = APP_STATE.currentLesson.imagePath || 'images/placeholder.png';
         
         container.innerHTML = `
             <!-- Background Scenery -->
@@ -407,6 +379,7 @@ async function renderLesson() {
         `;
 
         // NOW pre-build and populate the story content (hidden under entry page)
+        APP_STATE.hintsRemaining = 5;  // Reset hints for new lesson
         setupCharacterTracker();
         buildInteractiveStory();
         setupHintSystem();
@@ -460,14 +433,10 @@ function setupCharacterTracker() {
     const inventory = document.getElementById('ui-inventory');
     inventory.innerHTML = '';
     
-    let totalCharsToFind = 0;
-    
     APP_STATE.currentLesson.seekCharacters.forEach(char => {
         const regex = new RegExp(char, 'g');
         const matches = APP_STATE.currentLesson.storyText.match(regex);
         const totalCount = matches ? matches.length : 0;
-        
-        totalCharsToFind += totalCount;
         
         APP_STATE.charProgress[char] = { found: 0, total: totalCount };
         
@@ -478,11 +447,7 @@ function setupCharacterTracker() {
             </div>`;
     });
     
-    // Calculate hints as 15% of total characters to find, rounded up
-    APP_STATE.hintsRemaining = Math.ceil(totalCharsToFind * 0.15);
-    APP_STATE.maxHints = APP_STATE.hintsRemaining;
-    
-    console.log(`✅ [SETUP-TRACKER] Tracker ready. Total chars: ${totalCharsToFind}, Hints: ${APP_STATE.hintsRemaining}`);
+    console.log(`✅ [SETUP-TRACKER] Tracker ready`);
 }
 
 /**
@@ -525,10 +490,10 @@ function setupHintSystem() {
                 "
                 onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 12px 35px rgba(255, 99, 72, 0.7)';"
                 onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 8px 25px rgba(255, 99, 72, 0.5)';">
-            💡 获得提示 (<span id="hint-count">${APP_STATE.maxHints}</span>/${APP_STATE.maxHints})
+            💡 获得提示 (<span id="hint-count">5</span>/5)
         </button>
         
-        ${window.DEBUG_MODE ? `<button id="test-complete-btn" 
+        <button id="test-complete-btn" 
                 onclick="window.testCompletion()" 
                 style="
                     padding: 15px 35px; 
@@ -545,7 +510,7 @@ function setupHintSystem() {
                 onmouseover="this.style.transform='scale(1.05)';"
                 onmouseout="this.style.transform='scale(1)';">
             🧪 测试完成效果
-        </button>` : ''}
+        </button>
     `;
     
     bookViewport.parentNode.insertBefore(hintContainer, bookViewport.nextSibling);
@@ -604,7 +569,7 @@ function useHint() {
             hintBtn.style.cursor = 'not-allowed';
             hintBtn.style.boxShadow = 'none';
                         hintBtn.style.opacity = '0.6';
-            hintBtn.innerText = `💡 提示已用完 (0/${APP_STATE.maxHints})`;
+            hintBtn.innerText = '💡 提示已用完 (0/5)';
         }
     }
     
@@ -626,7 +591,14 @@ function buildInteractiveStory() {
     
     document.getElementById('page-wrapper').innerHTML = storyHtml;
     
-    console.log(`✅ [BUILD-STORY] Story ready (single scrollable view)`);
+    const pages = document.querySelectorAll('.story-page');
+    APP_STATE.totalPages = pages.length;
+    
+    if (APP_STATE.totalPages > 0) {
+        pages[0].classList.add('visible');
+    }
+    
+    console.log(`✅ [BUILD-STORY] ${APP_STATE.totalPages} pages ready`);
 }
 
 /**
@@ -638,47 +610,37 @@ function buildInteractiveStory() {
  * @returns {string} HTML string
  */
 function buildStoryHtml(text, pinyin, vocabList, hiddenChars) {
-    // Build a clean mapping of position -> pinyin
-    // Remove punctuation from pinyin syllables before mapping
-    const pinyinWords = pinyin.trim().split(/\s+/).map(py => 
-        py.replace(/[,.\n\r;:!?""''""（）()]/g, '').trim()
-    ).filter(py => py.length > 0);
-    const charToPinyinMap = new Map();
-    
-    // Extract all Chinese characters with their positions
-    let chineseCharIndex = 0;
-    for (let i = 0; i < text.length; i++) {
-        if (/[\u4e00-\u9fa5]/.test(text[i])) {
-            charToPinyinMap.set(i, pinyinWords[chineseCharIndex] || "");
-            chineseCharIndex++;
-        }
-    }
-    
+    const lines = text.split('\n').filter(l => l.trim() !== "");
+    const pinyinWords = pinyin.trim().split(/\s+/);
+    let pIdx = 0;
     let htmlOut = "";
-    htmlOut += `<div class="story-page visible" id="story-container"><div style="width: 100%; max-width: 800px; line-height: 2.5;">`;
 
-    let i = 0;
-    while (i < text.length) {
-        const vocab = vocabList.find(v => text.substr(i).startsWith(v.character));
+    lines.forEach((line, pageIdx) => {
+        htmlOut += `<div class="story-page" id="pg-${pageIdx}"><div>`;
+        let i = 0;
         
-        if (vocab) {
-            htmlOut += `<span class="vocab-word" onclick="window.showPopup('${escapeHtml(vocab.character)}','${escapeHtml(vocab.definition)}','${escapeHtml(vocab.pinyin)}')">`;
+        while (i < line.length) {
+            const vocab = vocabList.find(v => line.substr(i).startsWith(v.character));
             
-            for (let k = 0; k < vocab.character.length; k++) {
-                const py = charToPinyinMap.get(i + k) || "";
-                htmlOut += renderChar(text[i + k], py, hiddenChars);
+            if (vocab) {
+                htmlOut += `<span class="vocab-word" onclick="window.showPopup('${escapeHtml(vocab.character)}','${escapeHtml(vocab.definition)}','${escapeHtml(vocab.pinyin)}')">`;
+                
+                for (let k = 0; k < vocab.character.length; k++) {
+                    htmlOut += renderChar(line[i + k], pinyinWords[pIdx] || "", hiddenChars);
+                    if (/[\u4e00-\u9fa5]/.test(line[i + k])) pIdx++;
+                }
+                
+                htmlOut += `</span>`;
+                i += vocab.character.length;
+            } else {
+                htmlOut += renderChar(line[i], pinyinWords[pIdx] || "", hiddenChars);
+                if (/[\u4e00-\u9fa5]/.test(line[i])) pIdx++;
+                i++;
             }
-            
-            htmlOut += `</span>`;
-            i += vocab.character.length;
-        } else {
-            const py = charToPinyinMap.get(i) || "";
-            htmlOut += renderChar(text[i], py, hiddenChars);
-            i++;
         }
-    }
-    
-    htmlOut += `</div></div>`;
+        
+        htmlOut += `</div></div>`;
+    });
     
     return htmlOut;
 }
@@ -721,8 +683,11 @@ function escapeHtml(text) {
  * Show the story (single scrollable view - no pagination)
  */
 function showCurrentPage() {
-    // Story is already visible in the single scrollable view
-    console.log(`📖 [STORY-READY] Story ready for reading`);
+    const pages = document.querySelectorAll('.story-page');
+    if (pages.length > 0) {
+        pages[0].classList.add('visible');
+        console.log(`📖 [STORY-READY] Story ready for reading`);
+    }
 }
 
 /**

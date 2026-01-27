@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandarin Quest - Data Validation Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .test-section {
+            padding: 30px;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        #test-results {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .test-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+        
+        .test-pass {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .test-fail {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .test-info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        
+        .test-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .test-detail {
+            margin-left: 20px;
+            opacity: 0.85;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .stat-item.pass {
+            background: #d4edda;
+        }
+        
+        .stat-item.fail {
+            background: #f8d7da;
+        }
+        
+        .stat-item.total {
+            background: #d1ecf1;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Mandarin Quest</h1>
+            <p>Data Migration Validation Suite</p>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-controls">
+                <button class="btn-primary" onclick="runAllTests()">▶️ Run All Tests</button>
+                <button class="btn-secondary" onclick="clearResults()">🗑️ Clear Results</button>
+            </div>
+            
+            <div id="test-results"></div>
+            
+            <div id="stats-container"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Test State
+        let testResults = {
+            passed: 0,
+            failed: 0,
+            total: 0
+        };
+
+        let lessonsData = null;
+
+        // === CORE TEST RUNNER ===
+        async function runAllTests() {
+            clearResults();
+            log('🚀 Starting Test Suite...', 'info');
+            
+            try {
+                // Test 1: Fetch data.json
+                await testFetchData();
+                
+                // Test 2: Validate structure
+                testDataStructure();
+                
+                // Test 3: Test Lesson 1 specifically
+                testLessonOne();
+                
+                // Test 4: Validate vocab parsing
+                testVocabParsing();
+                
+                // Test 5: Validate seek characters
+                testSeekCharacters();
+                
+                // Test 6: Test all lessons
+                testAllLessons();
+                
+                // Test 7: Image masking function
+                testImageMasking();
+                
+                // Test 8: Hero name integration
+                testHeroName();
+                
+                // Show summary
+                displayStats();
+                
+            } catch (error) {
+                log(`❌ CRITICAL ERROR: ${error.message}`, 'fail');
+                testResults.failed++;
+            }
+            
+            testResults.total = testResults.passed + testResults.failed;
+        }
+
+        // === TEST CASES ===
+        
+        async function testFetchData() {
+            try {
+                const response = await fetch('data.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                lessonsData = await response.json();
+                
+                if (!Array.isArray(lessonsData)) {
+                    throw new Error('data.json is not an array');
+                }
+                
+                pass('Data Fetch', `Successfully loaded ${lessonsData.length} lessons`);
+            } catch (error) {
+                fail('Data Fetch', error.message);
+                throw error;
+            }
+        }
+
+        function testDataStructure() {
+            if (!lessonsData || lessonsData.length === 0) {
+                fail('Data Structure', 'No lessons found in data.json');
+                return;
+            }
+            
+            const requiredFields = ['lessonId', 'title', 'hero', 'storyText', 'pinyinText', 'vocabToExplain', 'seekCharacters', 'imageId'];
+            const firstLesson = lessonsData[0];
+            
+            const missingFields = requiredFields.filter(field => !(field in firstLesson));
+            
+            if (missingFields.length > 0) {
+                fail('Data Structure', `Missing fields: ${missingFields.join(', ')}`);
+            } else {
+                pass('Data Structure', `All required fields present: ${requiredFields.join(', ')}`);
+            }
+        }
+
+        function testLessonOne() {
+            if (!lessonsData || lessonsData.length === 0) {
+                fail('Lesson 1 Validation', 'No lessons available');
+                return;
+            }
+            
+            const lesson1 = lessonsData[0];
+            
+            // Check lesson ID
+            if (!lesson1.lessonId) {
+                fail('Lesson 1 - ID', 'Lesson ID is missing or empty');
+            } else {
+                pass('Lesson 1 - ID', `ID = "${lesson1.lessonId}"`);
+            }
+            
+            // Check title
+            if (!lesson1.title) {
+                fail('Lesson 1 - Title', 'Title is missing');
+            } else {
+                pass('Lesson 1 - Title', `"${lesson1.title}"`);
+            }
+            
+            // Check story text length
+            if (!lesson1.storyText || lesson1.storyText.length < 50) {
+                fail('Lesson 1 - Story', 'Story text is too short or missing');
+            } else {
+                pass('Lesson 1 - Story', `${lesson1.storyText.length} characters`);
+            }
+        }
+
+        function testVocabParsing() {
+            if (!lessonsData || lessonsData.length === 0) {
+                fail('Vocab Parsing', 'No lessons available');
+                return;
+            }
+            
+            const lesson1 = lessonsData[0];
+            
+            // CRITICAL: Check if vocabToExplain is an array
+            if (!Array.isArray(lesson1.vocabToExplain)) {
+                fail('Vocab Parsing', `vocabToExplain is NOT an array (type: ${typeof lesson1.vocabToExplain})`);
+                return;
+            }
+            
+            pass('Vocab Parsing - Type', `vocabToExplain is a valid array`);
+            
+            // Check if it has items
+            if (lesson1.vocabToExplain.length === 0) {
+                fail('Vocab Parsing - Count', 'vocabToExplain array is empty');
+                return;
+            }
+            
+            pass('Vocab Parsing - Count', `${lesson1.vocabToExplain.length} vocabulary items found`);
+            
+            // Check first vocab item structure
+            const firstVocab = lesson1.vocabToExplain[0];
+            const requiredVocabFields = ['character', 'pinyin', 'definition'];
+            const missingVocabFields = requiredVocabFields.filter(field => !(field in firstVocab));
+            
+            if (missingVocabFields.length > 0) {
+                fail('Vocab Parsing - Structure', `Missing fields in vocab object: ${missingVocabFields.join(', ')}`);
+            } else {
+                pass('Vocab Parsing - Structure', `First vocab: "${firstVocab.character}" (${firstVocab.pinyin})`);
+            }
+        }
+
+        function testSeekCharacters() {
+            if (!lessonsData || lessonsData.length === 0) {
+                fail('Seek Characters', 'No lessons available');
+                return;
+            }
+            
+            const lesson1 = lessonsData[0];
+            
+            // Check if seekCharacters is an array
+            if (!Array.isArray(lesson1.seekCharacters)) {
+                fail('Seek Characters - Type', `seekCharacters is NOT an array (type: ${typeof lesson1.seekCharacters})`);
+                return;
+            }
+            
+            pass('Seek Characters - Type', 'seekCharacters is a valid array');
+            
+            // Check if it has items
+            if (lesson1.seekCharacters.length === 0) {
+                fail('Seek Characters - Count', 'seekCharacters array is empty');
+                return;
+            }
+            
+            pass('Seek Characters - Count', `${lesson1.seekCharacters.length} characters to seek`);
+            
+            // Display first few characters
+            const preview = lesson1.seekCharacters.slice(0, 5).join(', ');
+            pass('Seek Characters - Preview', `First chars: ${preview}...`);
+        }
+
+        function testAllLessons() {
+            if (!lessonsData || lessonsData.length === 0) {
+                fail('All Lessons', 'No lessons available');
+                return;
+            }
+            
+            let invalidCount = 0;
+            const issues = [];
+            
+            lessonsData.forEach((lesson, index) => {
+                // Check vocab parsing for each lesson
+                if (!Array.isArray(lesson.vocabToExplain)) {
+                    invalidCount++;
+                    issues.push(`Lesson ${index + 1}: vocabToExplain not an array`);
+                }
+                
+                // Check seek characters
+                if (!Array.isArray(lesson.seekCharacters)) {
+                    invalidCount++;
+                    issues.push(`Lesson ${index + 1}: seekCharacters not an array`);
+                }
+                
+                // Check essential fields
+                if (!lesson.storyText) {
+                    invalidCount++;
+                    issues.push(`Lesson ${index + 1}: missing storyText`);
+                }
+            });
+            
+            if (invalidCount > 0) {
+                fail('All Lessons Validation', `${invalidCount} issues found`);
+                issues.forEach(issue => log(`  ⚠️ ${issue}`, 'fail'));
+            } else {
+                pass('All Lessons Validation', `All ${lessonsData.length} lessons are valid!`);
+            }
+        }
+
+        function testImageMasking() {
+            // Test the getMaskedImage function
+            if (typeof getMaskedImage !== 'function') {
+                fail('Image Masking - Function', 'getMaskedImage() not exposed globally');
+                return;
+            }
+            
+            pass('Image Masking - Function', 'getMaskedImage() is available');
+            
+            // Test with valid ID
+            const testId = '1u-Iccxkt5vLRWKI1-GpqLhS3ITwBZFLu';
+            const result = getMaskedImage(testId);
+            const expected = `https://lh3.googleusercontent.com/d/${testId}`;
+            
+            if (result === expected) {
+                pass('Image Masking - URL Construction', `Correct URL: ${result.substring(0, 50)}...`);
+            } else {
+                fail('Image Masking - URL Construction', `Expected ${expected}, got ${result}`);
+            }
+            
+            // Test with empty ID (should return placeholder)
+            const placeholderResult = getMaskedImage('');
+            if (placeholderResult.includes('placeholder')) {
+                pass('Image Masking - Fallback', 'Returns placeholder for empty ID');
+            } else {
+                fail('Image Masking - Fallback', 'Should return placeholder for empty ID');
+            }
+            
+            // Test data.json structure (imageId vs imageUrl)
+            if (!lessonsData || lessonsData.length === 0) {
+                fail('Image Masking - Data Structure', 'No lessons available');
+                return;
+            }
+            
+            const lesson1 = lessonsData[0];
+            if ('imageId' in lesson1 && !('imageUrl' in lesson1)) {
+                pass('Image Masking - Security', 'data.json uses imageId (secure) instead of imageUrl');
+            } else if ('imageUrl' in lesson1) {
+                fail('Image Masking - Security', 'data.json still contains full imageUrl (security risk)');
+            } else {
+                fail('Image Masking - Security', 'No image field found in data.json');
+            }
+        }
+
+        function testHeroName() {
+            if (!lessonsData || lessonsData.length === 0) {
+                fail('Hero Name - Data', 'No lessons available');
+                return;
+            }
+            
+            const lesson1 = lessonsData[0];
+            
+            // Check if hero field exists
+            if (!('hero' in lesson1)) {
+                fail('Hero Name - Field', 'No "hero" field in lesson data');
+                return;
+            }
+            
+            pass('Hero Name - Field', 'Hero field exists in data.json');
+            
+            // Check if hero has a value
+            if (!lesson1.hero || lesson1.hero.trim() === '') {
+                fail('Hero Name - Value', 'Hero name is empty');
+            } else {
+                pass('Hero Name - Value', `Hero name: "${lesson1.hero}"`);
+            }
+            
+            // Check if hero is not the default "勇士"
+            if (lesson1.hero === '勇士') {
+                log('⚠️ [WARNING] Hero Name: Using default value "勇士" - may need custom hero assignment', 'info');
+            } else {
+                pass('Hero Name - Custom', `Custom hero assigned: "${lesson1.hero}"`);
+            }
+        }
+
+        // === UTILITY FUNCTIONS ===
+        
+        function pass(testName, message) {
+            testResults.passed++;
+            log(`✅ [PASS] ${testName}: ${message}`, 'pass');
+        }
+
+        function fail(testName, message) {
+            testResults.failed++;
+            log(`❌ [FAIL] ${testName}: ${message}`, 'fail');
+        }
+
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('test-results');
+            const testItem = document.createElement('div');
+            testItem.className = `test-item test-${type}`;
+            testItem.textContent = message;
+            resultsDiv.appendChild(testItem);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('stats-container').innerHTML = '';
+            testResults = { passed: 0, failed: 0, total: 0 };
+        }
+
+        function displayStats() {
+            const statsContainer = document.getElementById('stats-container');
+            statsContainer.innerHTML = `
+                <div class="stats">
+                    <div class="stat-item total">
+                        <div class="stat-number">${testResults.total}</div>
+                        <div class="stat-label">Total Tests</div>
+                    </div>
+                    <div class="stat-item pass">
+                        <div class="stat-number">${testResults.passed}</div>
+                        <div class="stat-label">Passed</div>
+                    </div>
+                    <div class="stat-item fail">
+                        <div class="stat-number">${testResults.failed}</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Auto-run on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            log('💡 Test suite ready. Click "Run All Tests" to begin.', 'info');
+        });
+    </script>
+</body>
+</html>

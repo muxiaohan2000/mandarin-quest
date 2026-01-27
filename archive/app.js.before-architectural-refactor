@@ -1,0 +1,608 @@
+// =============================================================================
+// MANDARIN QUEST - Game Engine (Standalone Version)
+// Migrated from Google Apps Script to Vanilla JavaScript
+// =============================================================================
+
+// =============================================================================
+// 1. INIT: Data loading and app initialization
+// =============================================================================
+
+const STORAGE_KEY = 'mandarin_quest_progress';
+let allLessons = [];
+let currentLesson = null;
+let currentPage = 0;
+let totalPages = 0;
+let charProgress = {};
+
+/**
+ * Initialize the application and load all lessons
+ */
+async function initApp() {
+    try {
+        allLessons = await loadAllLessons();
+        console.log(`✅ Loaded ${allLessons.length} lessons from data.json`);
+    } catch (error) {
+        console.error('Failed to initialize app:', error);
+    }
+}
+
+/**
+ * Fetch all lessons from data.json
+ * @returns {Promise<Array>} Array of lesson objects
+ */
+async function loadAllLessons() {
+    try {
+        const response = await fetch('data.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load data.json: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error loading lessons:', error);
+        return [];
+    }
+}
+
+/**
+ * Load a specific lesson by ID
+ * @param {string|number} lessonId - The lesson identifier
+ * @returns {Promise<Object|null>} The lesson object or null if not found
+ */
+async function loadLesson(lessonId) {
+    if (allLessons.length === 0) {
+        allLessons = await loadAllLessons();
+    }
+    return allLessons.find(lesson => lesson.lessonId === lessonId) || null;
+}
+
+// =============================================================================
+// 2. STATE: localStorage and progress management
+// =============================================================================
+
+/**
+ * Get all completed lesson IDs from localStorage
+ * @returns {Array<string>} Array of completed lesson IDs
+ */
+function getProgress() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+}
+
+/**
+ * Save progress to localStorage
+ * @param {Array<string>} progress - Array of completed lesson IDs
+ */
+function saveProgress(progress) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+
+/**
+ * Mark a lesson as completed
+ * @param {string|number} lessonId - The lesson to mark complete
+ */
+function completeLessonProgress(lessonId) {
+    const progress = getProgress();
+    const lessonIdStr = String(lessonId);
+    
+    if (!progress.includes(lessonIdStr)) {
+        progress.push(lessonIdStr);
+        saveProgress(progress);
+        console.log(`✅ Lesson "${lessonIdStr}" marked as complete!`);
+    }
+}
+
+/**
+ * Check if a lesson is completed
+ * @param {string|number} lessonId - The lesson to check
+ * @returns {boolean} True if completed
+ */
+function isLessonCompleted(lessonId) {
+    return getProgress().includes(String(lessonId));
+}
+
+/**
+ * Check if a lesson is unlocked
+ * Unlock rules:
+ * - Lesson 0 (Group_1) is always unlocked
+ * - Subsequent lessons unlock if previous lesson is completed
+ * @param {number} lessonIndex - Index of lesson in lessons array (0-based)
+ * @returns {boolean} True if unlocked
+ */
+function isLessonUnlocked(lessonIndex) {
+    if (lessonIndex === 0) return true; // First lesson always unlocked
+    
+    if (allLessons.length === 0) return false;
+    const previousLesson = allLessons[lessonIndex - 1];
+    return isLessonCompleted(previousLesson.lessonId);
+}
+
+/**
+ * Clear all progress (for testing)
+ */
+function clearAllProgress() {
+    localStorage.removeItem(STORAGE_KEY);
+    console.log('🗑️ All progress cleared');
+}
+
+// =============================================================================
+// 3. COMPONENTS: Reusable UI elements
+// =============================================================================
+
+/**
+ * Create a single book element for the bookshelf
+ * @param {Object} lesson - The lesson object
+ * @param {number} index - Index in lessons array
+ * @returns {HTMLElement} The book element
+ */
+function createBookElement(lesson, index) {
+    const isUnlocked = isLessonUnlocked(index);
+    const isCompleted = isLessonCompleted(lesson.lessonId);
+    
+    const book = document.createElement('div');
+    book.className = `book-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+    book.dataset.lessonId = lesson.lessonId; // Store lessonId for testing
+    
+    // Cover image
+    const coverImg = lesson.imagePath || 'images/placeholder.png';
+    const imgStyle = `background-image: url('${coverImg}')`;
+    const filterClass = isUnlocked ? '' : 'grayscale';
+    
+    book.innerHTML = `
+        <div class="book-cover ${filterClass}" style="${imgStyle}">
+            ${!isUnlocked ? '<div class="lock-icon">🔒</div>' : ''}
+            ${isCompleted ? '<div class="star-badge">⭐</div>' : ''}
+        </div>
+        <div class="book-info">
+            <div class="book-title">${lesson.title}</div>
+            <div class="book-hero">🦸 ${lesson.hero || 'Unknown'}</div>
+        </div>
+    `;
+    
+    // Add click handler only for unlocked lessons
+    if (isUnlocked) {
+        book.style.cursor = 'pointer';
+        book.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log(`📖 Opening lesson: ${lesson.lessonId}`);
+            renderLesson(lesson.lessonId);
+        });
+    } else {
+        // Locked books show a message when clicked
+        book.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log(`🔒 Lesson ${lesson.lessonId} is locked. Complete previous lessons first!`);
+        });
+    }
+    
+    return book;
+}
+
+// =============================================================================
+// 4. VIEWS: Page rendering and navigation
+// =============================================================================
+
+/**
+ * Render the bookshelf view (main entry point)
+ */
+async function renderBookshelf() {
+    if (allLessons.length === 0) {
+        await initApp();
+    }
+    
+    const container = document.getElementById('app-container');
+    container.innerHTML = `
+        <div id="bookshelf">
+            <header class="bookshelf-header">
+                <h1>📚 Mandarin Quest</h1>
+                <p>读故事 找汉字</p>
+            </header>
+            <div class="bookshelf-grid" id="bookshelf-grid"></div>
+            <footer class="bookshelf-footer">
+                <button onclick="window.clearAllProgress(); location.reload();" class="reset-btn">
+                    🔄 Reset Progress (Testing)
+                </button>
+            </footer>
+        </div>
+    `;
+    
+    // Populate grid with book cards
+    const grid = document.getElementById('bookshelf-grid');
+    allLessons.forEach((lesson, index) => {
+        const bookElement = createBookElement(lesson, index);
+        grid.appendChild(bookElement);
+    });
+}
+
+/**
+ * Return to bookshelf from lesson
+ */
+function backToBookshelf() {
+    const container = document.getElementById('app-container');
+    container.innerHTML = ''; // Clear lesson view
+    renderBookshelf();
+}
+
+/**
+ * Main entry point: Render a lesson by ID
+ * @param {string|number} lessonId - The lesson to render
+ */
+async function renderLesson(lessonId) {
+    // Load lesson data
+    currentLesson = await loadLesson(lessonId);
+    if (!currentLesson) {
+        console.error(`Lesson not found: ${lessonId}`);
+        return;
+    }
+    
+    console.log(`🎮 Starting lesson: ${currentLesson.title}`);
+    
+    // Initialize game state
+    currentPage = 0;
+    totalPages = 0;
+    charProgress = {};
+    
+    // Render the game UI
+    buildGameUI();
+}
+
+/**
+ * Build the complete game interface
+ * Restored original working structure from Lesson_html
+ */
+function buildGameUI() {
+    const imageUrl = currentLesson.imagePath || 'images/placeholder.png';
+    
+    document.getElementById('app-container').innerHTML = `
+        <!-- Background Scenery -->
+        <div id="scenery" style="background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('${imageUrl}');">
+            <img src="${imageUrl}" 
+                 style="display:none;" 
+                 onerror="console.error('❌ Failed to load image: ${imageUrl}'); this.parentElement.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(https://via.placeholder.com/1200x800?text=Image+Load+Error)';"
+                 onload="console.log('✅ Image loaded successfully')">
+        </div>
+
+        <!-- Entry/Start Page -->
+        <div id="entry-page">
+            <h1 id="ui-title" style="color: white; font-size: 3.5rem; margin-bottom: 30px; text-shadow: 2px 2px 15px #000; font-family: 'Noto Sans SC', sans-serif;">
+                ${currentLesson.title}
+            </h1>
+            <button class="start-btn" onclick="window.startGame()">开始阅读</button>
+            <button onclick="window.backToBookshelf()" style="padding: 10px 20px; font-size: 1rem; background-color: rgba(255,255,255,0.3); border: 2px solid white; border-radius: 20px; cursor: pointer; color: white; margin-top: 20px;">
+                ← 返回书架
+            </button>
+        </div>
+
+        <!-- Main Game Container (Initially Hidden) -->
+        <div id="main-game-container" style="display:none;">
+            <!-- HUD: Hero Name + Character Tracker -->
+            <div id="hud">
+                <div class="hero-name" id="ui-hero">${currentLesson.hero}</div>
+                <div class="task-box" id="ui-inventory"></div>
+            </div>
+
+            <!-- Story Book Viewport -->
+            <div id="book-viewport">
+                <div id="page-wrapper"></div>
+            </div>
+        </div>
+
+        <!-- Vocabulary Popup (Sensei Guide) -->
+        <div id="p-overlay" onclick="window.closePopup()"></div>
+        <div id="popup">
+            <div style="font-size:2.5rem;">🏮</div>
+            <h2 id="p-word" style="color:var(--red-ink); margin:10px 0;"></h2>
+            <div id="p-pinyin" style="color:#666; font-style:italic;"></div>
+            <p id="p-mean" style="font-size:1.3rem;"></p>
+            <button onclick="window.closePopup()" style="margin-top:20px; padding:10px 20px; cursor:pointer;">关闭</button>
+        </div>
+
+        <!-- Victory Fireworks -->
+        <div id="firework-overlay">
+            <div class="victory-text">你真棒!</div>
+        </div>
+    `;
+}
+
+/**
+ * Start the game flow - Initialize and show game container
+ */
+function startGame() {
+    document.getElementById('entry-page').style.display = 'none';
+    document.getElementById('main-game-container').style.display = 'block';
+    
+    // Reset state
+    charProgress = {};
+    currentPage = 0;
+    
+    // Setup Character Tracker (Inventory)
+    setupCharacterTracker();
+    
+    // Build Interactive Story
+    buildInteractiveStory();
+}
+
+/**
+ * Setup the character tracker HUD
+ */
+function setupCharacterTracker() {
+    const inventory = document.getElementById('ui-inventory');
+    inventory.innerHTML = '';
+    
+    currentLesson.seekCharacters.forEach(char => {
+        // Count total occurrences in story
+        const regex = new RegExp(char, 'g');
+        const matches = currentLesson.storyText.match(regex);
+        const totalCount = matches ? matches.length : 0;
+        
+        // Initialize progress tracking
+        charProgress[char] = { found: 0, total: totalCount };
+        
+        // Create tracker slot
+        inventory.innerHTML += `
+            <div class="char-slot" id="slot-${char}">
+                <div class="char-main">${char}</div>
+                <div class="char-count" id="count-${char}">0/${totalCount}</div>
+            </div>`;
+    });
+}
+
+/**
+ * Build the interactive story HTML
+ */
+function buildInteractiveStory() {
+    const storyHtml = buildStoryHtml(
+        currentLesson.storyText,
+        currentLesson.pinyinText,
+        currentLesson.vocabToExplain,
+        currentLesson.seekCharacters
+    );
+    
+    document.getElementById('page-wrapper').innerHTML = storyHtml;
+    
+    // Setup pagination
+    const pages = document.querySelectorAll('.story-page');
+    totalPages = pages.length;
+    
+    if (totalPages > 0) {
+        pages[0].classList.add('visible');
+    }
+}
+
+/**
+ * Build interactive story HTML with vocab highlighting
+ */
+function buildStoryHtml(text, pinyin, vocabList, hiddenChars) {
+    const lines = text.split('\n').filter(l => l.trim() !== "");
+    const pinyinWords = pinyin.trim().split(/\s+/);
+    let pIdx = 0;
+    let htmlOut = "";
+
+    lines.forEach((line, pageIdx) => {
+        htmlOut += `<div class="story-page" id="pg-${pageIdx}"><div>`;
+        let i = 0;
+        
+        while (i < line.length) {
+            // Check if current position starts a vocab word
+            const vocab = vocabList.find(v => line.substr(i).startsWith(v.character));
+            
+            if (vocab) {
+                // Wrap vocab word with special class for popup trigger
+                htmlOut += `<span class="vocab-word" onclick="window.showPopup('${escapeHtml(vocab.character)}','${escapeHtml(vocab.definition)}','${escapeHtml(vocab.pinyin)}')">`;
+                
+                for (let k = 0; k < vocab.character.length; k++) {
+                    htmlOut += renderChar(line[i + k], pinyinWords[pIdx] || "", hiddenChars);
+                    if (/[\u4e00-\u9fa5]/.test(line[i + k])) pIdx++;
+                }
+                
+                htmlOut += `</span>`;
+                i += vocab.character.length;
+            } else {
+                // Regular character
+                htmlOut += renderChar(line[i], pinyinWords[pIdx] || "", hiddenChars);
+                if (/[\u4e00-\u9fa5]/.test(line[i])) pIdx++;
+                i++;
+            }
+        }
+        
+        htmlOut += `</div></div>`;
+    });
+    
+    return htmlOut;
+}
+
+/**
+ * Render a single character with ruby annotation
+ */
+function renderChar(char, py, hiddenChars) {
+    const isSeek = hiddenChars.includes(char);
+    const isChinese = /[\u4e00-\u9fa5]/.test(char);
+    
+    if (!isChinese) {
+        return char;
+    }
+    
+    if (isSeek) {
+        return `<ruby class="seek-char" onclick="window.captureCharacter(this,'${char}',event)">${char}<rt>${py}</rt></ruby>`;
+    }
+    
+    return `<ruby>${char}<rt>${py}</rt></ruby>`;
+}
+
+/**
+ * Escape HTML for safe insertion
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Navigate to next page
+ */
+function nextPage() {
+    const pages = document.querySelectorAll('.story-page');
+    if (currentPage < pages.length - 1) {
+        pages[currentPage].classList.remove('visible');
+        currentPage++;
+        pages[currentPage].classList.add('visible');
+    } else {
+        finishLesson();
+    }
+}
+
+/**
+ * Finish the lesson and mark as complete
+ */
+function finishLesson() {
+    completeLessonProgress(currentLesson.lessonId);
+    console.log('✅ Lesson completed!');
+    
+    // Show congratulations message briefly then go back
+    const container = document.getElementById('app-container');
+    container.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 3rem; text-align: center; flex-direction: column;">
+            <div style="font-size: 5rem; margin-bottom: 20px;">🎉</div>
+            <div>Congratulations!</div>
+            <div style="font-size: 1.5rem; margin-top: 20px;">祝贺你完成了这堂课！</div>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        backToBookshelf();
+    }, 3000);
+}
+
+/**
+ * Display vocabulary popup (Sensei Guide)
+ */
+function showPopup(character, definition, pinyin) {
+    document.getElementById('p-word').innerText = character;
+    document.getElementById('p-pinyin').innerText = pinyin || '';
+    document.getElementById('p-mean').innerText = definition || '';
+    document.getElementById('p-overlay').style.display = 'block';
+    document.getElementById('popup').style.display = 'block';
+}
+
+/**
+ * Close vocabulary popup
+ */
+function closePopup() {
+    document.getElementById('p-overlay').style.display = 'none';
+    document.getElementById('popup').style.display = 'none';
+}
+
+/**
+ * Capture a seek character (with sparkle animation)
+ */
+function captureCharacter(element, char, event) {
+    event.stopPropagation();
+    
+    // Check if already captured
+    if (element.classList.contains('captured')) {
+        return;
+    }
+    
+    // Mark as captured
+    element.classList.add('captured');
+    
+    // Update progress tracker
+    if (charProgress[char]) {
+        charProgress[char].found++;
+        const countEl = document.getElementById(`count-${char}`);
+        if (countEl) {
+            countEl.innerText = `${charProgress[char].found}/${charProgress[char].total}`;
+        }
+        
+        // Check if character collection is complete
+        if (charProgress[char].found === charProgress[char].total) {
+            const slot = document.getElementById(`slot-${char}`);
+            if (slot) slot.classList.add('complete');
+        }
+    }
+    
+    // Sparkle animation
+    const rect = element.getBoundingClientRect();
+    for (let i = 0; i < 12; i++) {
+        const spark = document.createElement('div');
+        spark.style.position = 'fixed';
+        spark.style.left = rect.left + 'px';
+        spark.style.top = rect.top + 'px';
+        spark.style.width = '10px';
+        spark.style.height = '10px';
+        spark.style.background = '#FFD700';
+        spark.style.borderRadius = '50%';
+        spark.style.pointerEvents = 'none';
+        spark.style.boxShadow = '0 0 10px #FFD700';
+        document.body.appendChild(spark);
+        
+        // Animate sparkle
+        const angle = (i / 12) * Math.PI * 2;
+        const distance = 100;
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+        
+        spark.animate([
+            { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+            { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+        ], {
+            duration: 600,
+            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        }).onfinish = () => spark.remove();
+    }
+    
+    // Mark character as captured on UI
+    element.style.background = '#FFD700';
+    element.style.borderRadius = '5px';
+    element.style.padding = '3px 6px';
+    element.style.fontWeight = 'bold';
+    
+    console.log(`✨ Captured: ${char}`);
+    
+    // Check if all characters are found
+    checkAllCharactersFound();
+}
+
+/**
+ * Check if all seek characters have been found
+ */
+function checkAllCharactersFound() {
+    const allFound = currentLesson.seekCharacters.every(char => 
+        charProgress[char] && charProgress[char].found === charProgress[char].total
+    );
+    
+    if (allFound) {
+        console.log('🎉 All characters found!');
+        setTimeout(() => {
+            finishLesson();
+        }, 1000);
+    }
+}
+
+// =============================================================================
+// 5. GLOBAL FUNCTION EXPOSURE: Make functions available to onclick handlers
+// =============================================================================
+
+window.renderBookshelf = renderBookshelf;
+window.renderLesson = renderLesson;
+window.backToBookshelf = backToBookshelf;
+window.startGame = startGame;
+window.nextPage = nextPage;
+window.finishLesson = finishLesson;
+window.captureCharacter = captureCharacter;
+window.showPopup = showPopup;
+window.closePopup = closePopup;
+window.clearAllProgress = clearAllProgress;
+
+// =============================================================================
+// 6. AUTO-INITIALIZATION
+// =============================================================================
+
+// Initialize app when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initApp();
+    });
+} else {
+    initApp();
+}

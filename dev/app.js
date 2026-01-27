@@ -30,7 +30,7 @@ const APP_STATE = {
 async function initApp() {
     console.log('🚀 [APP-INIT] Starting Mandarin Quest...');
     try {
-        const response = await fetch('./data.json?v=' + Date.now());
+        const response = await fetch('data.json?v=' + Date.now());
         if (!response.ok) {
             throw new Error(`Failed to load data.json: ${response.status}`);
         }
@@ -227,7 +227,7 @@ function createBookElement(lesson, index) {
     book.className = `book-card ${isUnlocked ? 'unlocked' : 'locked'}`;
     book.dataset.lessonId = lesson.lessonId;
     
-    const coverImg = lesson.imagePath || './images/placeholder.png';
+    const coverImg = lesson.imagePath || 'images/placeholder.png';
     const filterClass = isUnlocked ? '' : 'grayscale';
     
     book.innerHTML = `
@@ -357,7 +357,7 @@ async function renderLesson() {
     }
     
     try {
-        const imageUrl = APP_STATE.currentLesson.imagePath || './images/placeholder.png';
+        const imageUrl = APP_STATE.currentLesson.imagePath || 'images/placeholder.png';
         
         container.innerHTML = `
             <!-- Background Scenery -->
@@ -639,10 +639,7 @@ function buildInteractiveStory() {
  */
 function buildStoryHtml(text, pinyin, vocabList, hiddenChars) {
     // Build a clean mapping of position -> pinyin
-    // Remove punctuation from pinyin syllables before mapping
-    const pinyinWords = pinyin.trim().split(/\s+/).map(py => 
-        py.replace(/[,.\n\r;:!?""''""（）()]/g, '').trim()
-    ).filter(py => py.length > 0);
+    const pinyinWords = pinyin.trim().split(/\s+/);
     const charToPinyinMap = new Map();
     
     // Extract all Chinese characters with their positions

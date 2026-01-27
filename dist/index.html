@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mandarin Quest - 读故事 找汉字</title>
+    <meta name="description" content="An interactive Chinese learning game where students read stories and hunt for hidden characters. Practice reading comprehension and character recognition through engaging adventures.">
+    <meta name="keywords" content="Chinese learning, Mandarin, 汉字, reading practice, interactive stories, language education">
+    <meta name="author" content="Mandarin Quest">
+    <meta property="og:title" content="Mandarin Quest - 读故事 找汉字">
+    <meta property="og:description" content="Interactive Chinese reading game for students - hunt for hidden characters in beautiful stories">
+    <meta property="og:type" content="website">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Main Container (bookshelf or lesson will be injected here) -->
+    <div id="app-container"></div>
+    
+    <!-- Debug Mode: Test Runner (only visible with ?debug=true) -->
+    <div id="spec-runner" style="display:none; position:fixed; bottom:0; left:0; right:0; max-height:40vh; overflow:auto; background:rgba(0,0,0,0.8); color:#fff; font-family: monospace; padding:10px; z-index:9999;"></div>
+    <button id="spec-button" style="display:none; position:fixed; bottom:15px; right:15px; padding:8px 12px; border-radius:6px; background:#FFD700; border:none; cursor:pointer; z-index:10000;">🧪 Run Tests</button>
+    <script>
+        // Debug mode toggle
+        const DEBUG_MODE = window.location.search.includes('debug=true');
+        window.DEBUG_MODE = DEBUG_MODE;
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('spec-button');
+            const panel = document.getElementById('spec-runner');
+            
+            if (DEBUG_MODE && btn) {
+                btn.style.display = 'block';
+                btn.addEventListener('click', async () => {
+                    if (window.runAllTests) {
+                        panel.style.display = 'block';
+                        const ok = await window.runAllTests();
+                        console.log(`[SPEC] Completed: ${ok ? 'PASS' : 'FAIL'}`);
+                    } else {
+                        console.warn('runAllTests not available');
+                    }
+                });
+            }
+        });
+    </script>
+    
+    <script src="app.js"></script>
+    <script src="tests.js" defer></script>
+    
+    <script>
+        // Initialize app on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof window.initApp === 'function') {
+                await window.initApp();
+            } else {
+                console.error('❌ initApp not found');
+            }
+        });
+    </script>
+</html>

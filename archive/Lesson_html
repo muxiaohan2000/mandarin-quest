@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --hero-gold: #FFD700; --paper: #fafafa; --red-ink: #c0392b; --glass: rgba(0,0,0,0.85); }
+        body { background: #111; color: #222; font-family: 'Noto Sans SC', sans-serif; margin: 0; height: 100vh; overflow: hidden; }
+        
+        /* SCENERY */
+        #scenery { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('<?= IMAGE_URL ?>') center/cover;
+            z-index: -1; 
+        }
+        
+        /* HUD */
+        #hud { 
+            position: relative; z-index: 100; background: var(--glass); border-bottom: 3px solid var(--hero-gold);
+            padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; color: white;
+        }
+        .hero-name { font-size: 1.2rem; font-weight: bold; color: var(--hero-gold); }
+        
+        /* Character Tracker with Counters */
+        .task-box { display: flex; gap: 8px; }
+        .char-slot { 
+            width: 45px; height: 50px; border: 2px solid #555; border-radius: 8px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: rgba(0,0,0,0.6); color: #777; transition: 0.3s;
+        }
+        .char-main { font-size: 1.2rem; }
+        .char-count { font-size: 0.6rem; color: #999; }
+        .char-slot.done { 
+            background: var(--hero-gold); color: #000; border-color: white; 
+            box-shadow: 0 0 15px var(--hero-gold); transform: scale(1.05);
+        }
+        .char-slot.done .char-count { color: #333; font-weight: bold; }
+
+        /* THE BOOK - WIDE DISPLAY */
+        #book-viewport { height: 70vh; display: flex; align-items: center; justify-content: center; margin-top: 10px; }
+        #page-wrapper { position: relative; width: 95vw; max-width: 900px; height: 100%; }
+        
+        .story-page { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--paper); border-radius: 8px 16px 16px 8px; 
+            padding: 40px; box-sizing: border-box; display: none; 
+            flex-direction: column; align-items: center; text-align: center; 
+            font-size: 1.8rem; line-height: 2.8; box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+            border-left: 12px solid #e0e0e0; overflow-y: auto;
+            display: flex !important;
+        }
+        .story-page.visible { display: flex; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* INTERACTIVE TEXT */
+        ruby { margin: 0 4px; }
+        rt { color: #888; font-size: 0.5em; }
+        .vocab-word { 
+            border-bottom: 3px solid var(--red-ink); cursor: pointer; color: var(--red-ink); 
+            font-weight: bold; background: rgba(192, 57, 43, 0.05); padding: 0 2px; border-radius: 4px;
+        }
+        .hidden-char { cursor: pointer; transition: 0.3s; }
+        .hidden-char.found { color: var(--hero-gold); font-weight: bold; text-shadow: 1px 1px 0px #000; }
+
+        /* CONTROLS */
+        #controls { position: fixed; bottom: 30px; width: 100%; display: flex; justify-content: center; gap: 40px; }
+        .nav-btn { background: var(--hero-gold); border: none; padding: 12px 40px; border-radius: 30px; font-weight: bold; cursor: pointer; }
+        .nav-btn:disabled { background: #555; color: #888; }
+
+        /* POPUP */
+        #popup { 
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            background: white; width: 85%; max-width: 450px; padding: 25px; 
+            border-radius: 15px; border: 4px solid var(--hero-gold); 
+            text-align: center; display: none; z-index: 500;
+        }
+        #p-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:400; display:none; }
+
+        /* 1. The Glow on the character itself */
+        .hidden-char.found {
+            color: var(--hero-gold);
+            text-shadow: 0 0 10px #fff, 0 0 20px var(--hero-gold);
+            animation: glow-pulse 1.5s infinite alternate;
+        }
+
+        @keyframes glow-pulse {
+            from { filter: brightness(1) drop-shadow(0 0 2px var(--hero-gold)); }
+            to { filter: brightness(1.5) drop-shadow(0 0 15px var(--hero-gold)); }
+        }
+
+        /* 2. The Sparkle Particles */
+        .sparkle {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            background: var(--hero-gold);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            box-shadow: 0 0 10px #fff;
+        }
+
+        @keyframes sparkle-out {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
+        /* Firework Overlay */
+        #firework-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8) url('https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif') center;
+            background-size: cover; z-index: 999; 
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .victory-text {
+            color: var(--hero-gold); font-size: 5rem; font-weight: bold;
+            text-shadow: 0 0 20px #fff, 0 0 30px var(--hero-gold);
+            animation: rainbow 2s infinite, pulse 1s infinite alternate;
+        }
+        @keyframes rainbow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        /* Entry Page Container */
+        #entry-page {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            /* Use a subtle gradient instead of a solid dark block to let the image shine */
+            background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.7)); 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            /* REMOVED: backdrop-filter: blur(5px); */
+        }
+
+        .start-btn {
+            padding: 20px 60px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #000;
+            background: var(--hero-gold);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            transition: transform 0.3s;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Hide the main game initially */
+        #main-game-container {
+            display: none;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+    </style>
+</head>
+<body>
+    <div id="scenery"></div>
+
+    <div id="entry-page">
+        <h1 id="ui-title" style="color: white; font-size: 3.5rem; margin-bottom: 30px; text-shadow: 2px 2px 15px #000; font-family: 'Noto Sans SC', sans-serif;">
+            <?= lessonData[0].titleName ?>
+        </h1>
+        <button class="start-btn" onclick="startGame()">开始阅读</button>
+    </div>
+    <div id="main-game-container">
+      <div id="hud">
+          <div class="hero-name" id="ui-hero">Hero</div>
+          <div class="task-box" id="ui-inventory"></div>
+      </div>
+
+      <div id="book-viewport"><div id="page-wrapper"></div></div>
+    </div>
+
+    <div id="p-overlay" onclick="closePopup()"></div>
+    <div id="popup">
+        <div style="font-size:2.5rem;">🏮</div>
+        <h2 id="p-word" style="color:var(--red-ink); margin:10px 0;"></h2>
+        <div id="p-pinyin" style="color:#666; font-style:italic;"></div>
+        <p id="p-mean" style="font-size:1.3rem;"></p>
+        <button onclick="closePopup()" style="margin-top:20px; padding:10px 20px; cursor:pointer;">关闭</button>
+    </div>
+
+    <div id="firework-overlay">
+      <div class="victory-text">你真棒!</div>
+    </div>
+
+    <script>
+        let DATA = <?!= JSON.stringify(lessonData[0]) ?>;
+        let currentPage = 0, totalPages = 0, charProgress = {};
+
+        function startGame() {
+            // Hide Entry
+            document.getElementById('entry-page').style.display = 'none';
+            
+            // Show Game with Fade In
+            const game = document.getElementById('main-game-container');
+            game.style.display = 'block';
+            setTimeout(() => {
+                game.style.opacity = '1';
+            }, 10);
+
+            // Optional: Trigger background music or a specific 'Quest Start' sound here
+        }
+
+        function init() {
+            document.getElementById('ui-title').innerText = DATA.titleName;
+            document.getElementById('ui-hero').innerText = DATA.heroName;
+            
+            // Setup Tracker Logic
+            const inv = document.getElementById('ui-inventory');
+            DATA.charsToMaster.forEach(char => {
+                const count = (DATA.storyText.match(new RegExp(char, "g")) || []).length;
+                charProgress[char] = { found: 0, total: count };
+                inv.innerHTML += `
+                    <div class="char-slot" id="slot-${char}">
+                        <div class="char-main">${char}</div>
+                        <div class="char-count" id="count-${char}">0/${count}</div>
+                    </div>`;
+            });
+
+            // Build Story
+            document.getElementById('page-wrapper').innerHTML = buildStoryHtml(DATA.storyText, DATA.pinyinText, DATA.vocabToExplain, DATA.charsToMaster);
+            const pages = document.querySelectorAll('.story-page');
+            totalPages = pages.length;
+            if (totalPages > 0) { pages[0].classList.add('visible'); updateNav(); }
+        }
+
+        function buildStoryHtml(text, pinyin, vocabList, hiddenChars) {
+            const lines = text.split('\n').filter(l => l.trim() !== "");
+            const pinyinWords = pinyin.trim().split(/\s+/);
+            let pIdx = 0, htmlOut = "";
+
+            lines.forEach((line, pageIdx) => {
+                htmlOut += `<div class="story-page" id="pg-${pageIdx}"><div>`;
+                let i = 0;
+                while (i < line.length) {
+                    const vocab = vocabList.find(v => line.substr(i).startsWith(v.character));
+                    if (vocab) {
+                        htmlOut += `<span class="vocab-word" onclick="showPopup('${vocab.character}','${vocab.definition}','${vocab.pinyin}')">`;
+                        for (let k = 0; k < vocab.character.length; k++) {
+                            htmlOut += renderChar(line[i+k], pinyinWords[pIdx] || "", hiddenChars);
+                            if (/[\u4e00-\u9fa5]/.test(line[i+k])) pIdx++;
+                        }
+                        htmlOut += `</span>`;
+                        i += vocab.character.length;
+                    } else {
+                        htmlOut += renderChar(line[i], pinyinWords[pIdx] || "", hiddenChars);
+                        if (/[\u4e00-\u9fa5]/.test(line[i])) pIdx++;
+                        i++;
+                    }
+                }
+                htmlOut += `</div></div>`;
+            });
+            return htmlOut;
+        }
+
+        function renderChar(char, pinyin, hiddenList) {
+            if (/[\u4e00-\u9fa5]/.test(char)) {
+                const isHidden = hiddenList.includes(char);
+                return `<ruby class="${isHidden ? 'hidden-char' : ''}" onclick="${isHidden ? "capture(this,'"+char+"')" : "" }">${char}<rt>${pinyin}</rt></ruby>`;
+            }
+            return `<span>${char}</span>`;
+        }
+
+        function capture(el, char) {
+            if (el.classList.contains('found')) return;
+
+            // --- CREATE SPARKLE BURST ---
+            for (let i = 0; i < 12; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                
+                // Position at click
+                sparkle.style.left = event.clientX + 'px';
+                sparkle.style.top = event.clientY + 'px';
+                
+                // Randomize direction and distance
+                const tx = (Math.random() - 0.5) * 200 + "px";
+                const ty = (Math.random() - 0.5) * 200 + "px";
+                sparkle.style.setProperty('--tx', tx);
+                sparkle.style.setProperty('--ty', ty);
+                
+                // Apply animation
+                sparkle.style.animation = `sparkle-out ${0.5 + Math.random()}s forwards`;
+                
+                document.body.appendChild(sparkle);
+                setTimeout(() => sparkle.remove(), 1500);
+            }
+
+            // --- CHARACTER LOGIC ---
+            el.classList.add('found');
+            let stats = charProgress[char];
+            stats.found++;
+            
+            document.getElementById(`count-${char}`).innerText = `${stats.found}/${stats.total}`;
+            
+            if (stats.found >= stats.total) {
+                document.getElementById(`slot-${char}`).classList.add('done');
+                checkMissionComplete();
+            }
+        }
+
+      // 4. Mission Completion Logic
+        function checkMissionComplete() {
+            const allDone = Object.values(charProgress).every(s => s.found >= s.total);
+            if (allDone) {
+                const fw = document.getElementById('firework-overlay');
+                fw.style.display = 'block';
+                setTimeout(() => { fw.style.display = 'none'; }, 5000); // Hide after 5 seconds
+            }
+        }
+
+        function showPopup(w, d, p) {
+            document.getElementById('p-word').innerText = w;
+            document.getElementById('p-pinyin').innerText = p;
+            document.getElementById('p-mean').innerText = d;
+            document.getElementById('popup').style.display = 'block';
+            document.getElementById('p-overlay').style.display = 'block';
+        }
+
+        function closePopup() { 
+            document.getElementById('popup').style.display = 'none'; 
+            document.getElementById('p-overlay').style.display = 'none'; 
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

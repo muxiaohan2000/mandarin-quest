@@ -1,0 +1,625 @@
+/* =============================================================================
+   MANDARIN QUEST - Stylesheet
+   Ported from Lesson_html Google Apps Script template
+   ============================================================================= */
+
+/* === CSS VARIABLES === */
+:root {
+    --hero-gold: #FFD700;
+    --paper: #fafafa;
+    --red-ink: #c0392b;
+    --glass: rgba(0,0,0,0.85);
+}
+
+/* === BASE STYLES === */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #111;
+    color: #222;
+    font-family: 'Noto Sans SC', sans-serif;
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* === BACKGROUND SCENERY === */
+#scenery {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    z-index: -1;
+}
+
+/* === ENTRY PAGE === */
+#entry-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.7));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+}
+
+.start-btn {
+    padding: 20px 60px;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #000;
+    background: var(--hero-gold);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+    transition: transform 0.3s;
+}
+
+.start-btn:hover {
+    transform: scale(1.1);
+}
+
+/* === MAIN GAME CONTAINER === */
+#main-game-container {
+    display: none;
+    opacity: 0;
+    transition: opacity 1s;
+}
+
+/* === HUD (Header) === */
+#hud {
+    position: relative;
+    z-index: 100;
+    background: var(--glass);
+    border-bottom: 3px solid var(--hero-gold);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+}
+
+.hero-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--hero-gold);
+}
+
+/* === CHARACTER TRACKER === */
+.task-box {
+    display: flex;
+    gap: 8px;
+}
+
+.char-slot {
+    width: 45px;
+    height: 50px;
+    border: 2px solid #555;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.6);
+    color: #777;
+    transition: 0.3s;
+}
+
+.char-main {
+    font-size: 1.2rem;
+}
+
+.char-count {
+    font-size: 0.6rem;
+    color: #999;
+}
+
+.char-slot.done {
+    background: var(--hero-gold);
+    color: #000;
+    border-color: white;
+    box-shadow: 0 0 15px var(--hero-gold);
+    transform: scale(1.05);
+}
+
+.char-slot.done .char-count {
+    color: #333;
+    font-weight: bold;
+}
+
+/* === BOOK VIEWPORT === */
+#book-viewport {
+    height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+#page-wrapper {
+    position: relative;
+    width: 95vw;
+    max-width: 900px;
+    height: 100%;
+}
+
+.story-page {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--paper);
+    border-radius: 8px 16px 16px 8px;
+    padding: 40px;
+    box-sizing: border-box;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    font-size: 1.8rem;
+    line-height: 2.8;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+    border-left: 12px solid #e0e0e0;
+    overflow-y: auto;
+}
+
+.story-page.visible {
+    display: flex !important;
+    animation: fadeIn 0.4s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* === INTERACTIVE TEXT === */
+ruby {
+    margin: 0 4px;
+}
+
+rt {
+    color: #888;
+    font-size: 0.5em;
+}
+
+.vocab-word {
+    border-bottom: 3px solid #00BCD4;
+    cursor: pointer;
+    color: #00BCD4;
+    font-weight: bold;
+    background: rgba(0, 188, 212, 0.08);
+    padding: 0 2px;
+    border-radius: 4px;
+}
+
+/* Hint reveal highlight (distinct from normal found) */
+.hidden-char.hint-reveal {
+    color: #6C63FF !important; /* playful indigo */
+    font-weight: 700 !important;
+    text-shadow: 0 0 8px rgba(108, 99, 255, 0.5) !important;
+    background: rgba(108, 99, 255, 0.08);
+    border-radius: 4px;
+    padding: 0 3px;
+}
+
+.hidden-char {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* Found character highlighting - kid-friendly bright coral */
+ruby.hidden-char.found,
+.hidden-char.found {
+    color: #FF6B6B !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 8px rgba(255, 107, 107, 0.5) !important;
+    filter: none !important;
+}
+
+/* === SPARKLE ANIMATION === */
+.sparkle {
+    position: fixed;
+    width: 6px;
+    height: 6px;
+    background: var(--hero-gold);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 10000;
+    box-shadow: 0 0 10px #fff;
+}
+
+@keyframes sparkle-out {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+
+/* === VOCABULARY POPUP (SENSEI GUIDE) === */
+#p-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 400;
+    display: none;
+}
+
+#popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    width: 85%;
+    max-width: 450px;
+    padding: 25px;
+    border-radius: 15px;
+    border: 4px solid var(--hero-gold);
+    text-align: center;
+    display: none;
+    z-index: 500;
+}
+
+#popup button {
+    background: var(--hero-gold);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+#popup button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+/* === VICTORY FIREWORKS === */
+#firework-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8) url('https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif') center;
+    background-size: cover;
+    z-index: 999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.victory-text {
+    color: var(--hero-gold);
+    font-size: 5rem;
+    font-weight: bold;
+    text-shadow: 0 0 20px #fff, 0 0 30px var(--hero-gold);
+    animation: rainbow 2s infinite, pulse 1s infinite alternate;
+}
+
+@keyframes rainbow {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes pulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
+
+/* === CONTROLS === */
+#controls {
+    position: fixed;
+    bottom: 30px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+}
+
+.nav-btn {
+    background: var(--hero-gold);
+    border: none;
+    padding: 12px 40px;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.nav-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.nav-btn:disabled {
+    background: #555;
+    color: #888;
+    cursor: not-allowed;
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+    .story-page {
+        font-size: 1.4rem;
+        line-height: 2.4;
+        padding: 25px;
+    }
+    
+    .victory-text {
+        font-size: 3rem;
+    }
+    
+    .hero-name {
+        font-size: 1rem;
+    }
+    
+    .char-slot {
+        width: 40px;
+        height: 45px;
+    }
+}
+/* =============================================================================
+   BOOKSHELF VIEW - Main Entry Point
+   ============================================================================= */
+
+#bookshelf {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: url('https://www.transparenttextures.com/patterns/clouds.png'), linear-gradient(180deg, #87CEEB 0%, #E0F7FA 100%);
+    color: white;
+    overflow: hidden;
+}
+
+.bookshelf-header {
+    text-align: center;
+    padding: 30px 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 3px solid #FFD700;
+}
+
+.bookshelf-header h1 {
+    font-size: 3rem;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.bookshelf-header p {
+    font-size: 1.5rem;
+    margin: 10px 0 0 0;
+    opacity: 0.9;
+}
+
+.bookshelf-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 60px 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 40px;
+    align-content: start;
+    justify-items: center;
+}
+
+.book-card {
+    position: relative;
+    width: 240px;
+    height: 320px;
+    border-radius: 25px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 8px solid white;
+    transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+    background: #ffffff;
+}
+
+.book-card.unlocked {
+    cursor: pointer;
+}
+
+.book-card.unlocked:hover {
+    transform: scale(1.05) rotate(1deg);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    border-color: var(--hero-gold);
+}
+
+.book-card.locked {
+    filter: saturate(0.2) brightness(0.85);
+    cursor: not-allowed;
+}
+
+.book-cover {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.book-cover.grayscale {
+    filter: grayscale(100%) brightness(0.8);
+}
+
+.lock-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3.5rem;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+}
+
+.star-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 2.5rem;
+    color: var(--hero-gold);
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.book-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 15px;
+    background: white;
+    border-top: 4px solid #FFD70022;
+}
+
+.book-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.book-hero {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.bookshelf-footer {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    text-align: center;
+    border-top: 2px solid #FFD700;
+}
+
+.reset-btn {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    background: #FF6B6B;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.reset-btn:hover {
+    background: #FF5252;
+    box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4);
+}
+
+/* === POPUP STYLES === */
+.popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.popup-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    text-align: center;
+}
+
+.close-btn {
+    float: right;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #999;
+    transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+    color: #000;
+}
+
+/* === PAGE CONTAINER === */
+.page-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+/* === VOCAB AND SEEK STYLES === */
+.vocab-word {
+    color: #E8860F;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+.vocab-word:hover {
+    background: #FFF59D;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+/* Ensure proper ruby annotation display */
+ruby {
+    display: inline-ruby;
+    ruby-position: over;
+    margin: 0 4px;
+}
+
+ruby > rt {
+    display: ruby-text;
+    font-size: 0.5em;
+    color: #888;
+    line-height: 1;
+}
+
+/* For browsers that don't support ruby well */
+@supports not (display: ruby) {
+    ruby {
+        display: inline-block;
+        text-align: center;
+        vertical-align: bottom;
+    }
+    
+    ruby > rt {
+        display: block;
+        font-size: 0.5em;
+        line-height: 1.2;
+    }
+}

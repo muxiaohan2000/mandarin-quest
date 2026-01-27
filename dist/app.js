@@ -28,15 +28,13 @@ const APP_STATE = {
  * Initialize the application - called once on DOMContentLoaded
  */
 async function initApp() {
-    console.log('🚀 [APP-INIT] Starting Mandarin Quest...');
     try {
-        const response = await fetch('./data.json?v=' + Date.now());
+        const response = await fetch('data.json?v=' + Date.now());
         if (!response.ok) {
             throw new Error(`Failed to load data.json: ${response.status}`);
         }
         
         APP_STATE.allLessons = await response.json();
-        console.log(`✅ [APP-INIT] Loaded ${APP_STATE.allLessons.length} lessons`);
         
         // Verify data integrity
         if (APP_STATE.allLessons.length === 0) {
@@ -46,7 +44,6 @@ async function initApp() {
         // Render initial view
         switchView('bookshelf');
     } catch (error) {
-        console.error('❌ [APP-INIT] Error loading app:', error);
         
         // Show friendly error to user
         const container = document.getElementById('app-container');
@@ -100,36 +97,29 @@ async function initApp() {
  * @param {string} viewName - Target view: 'bookshelf' or 'lesson'
  */
 function switchView(viewName) {
-    console.log(`🔄 [SWITCH-VIEW] ${APP_STATE.currentView} → ${viewName}`);
     
     // Prevent redundant switches
     const container = document.getElementById('app-container');
     const hasContent = !!(container && container.children && container.children.length > 0);
     if (viewName === APP_STATE.currentView && hasContent) {
-        console.warn(`⚠️ [SWITCH-VIEW] Already on ${viewName}`);
         return;
     }
     
     APP_STATE.currentView = viewName;
     
     if (!container) {
-        console.error('❌ [SWITCH-VIEW] Cannot find #app-container');
         return;
     }
     
     try {
         if (viewName === 'bookshelf') {
-            console.log('📚 [SWITCH-VIEW] Rendering bookshelf...');
             renderBookshelf();
         } else if (viewName === 'lesson') {
-            console.log('📖 [SWITCH-VIEW] Rendering lesson...');
             renderLesson();
         } else {
             throw new Error(`Unknown view: ${viewName}`);
         }
-        console.log(`✅ [SWITCH-VIEW] Now showing: ${viewName}`);
     } catch (error) {
-        console.error(`❌ [SWITCH-VIEW] Error rendering ${viewName}:`, error);
         // Fallback: return to bookshelf on error
         APP_STATE.currentView = 'bookshelf';
         renderBookshelf();
@@ -168,7 +158,6 @@ function completeLessonProgress(lessonId) {
     if (!progress.includes(lessonIdStr)) {
         progress.push(lessonIdStr);
         saveProgress(progress);
-        console.log(`✅ [PROGRESS] Lesson "${lessonIdStr}" completed`);
     }
 }
 
@@ -204,7 +193,6 @@ function isLessonUnlocked(lessonIndex) {
  */
 function clearAllProgress() {
     localStorage.removeItem(STORAGE_KEY);
-    console.log('🗑️ [PROGRESS] All progress cleared');
 }
 
 // =============================================================================
@@ -218,7 +206,6 @@ function clearAllProgress() {
  * @returns {HTMLElement} The book card element
  */
 function createBookElement(lesson, index) {
-    console.log(`📖 [BOOK-ELEMENT] Creating: ${lesson.lessonId}`);
     
     const isUnlocked = isLessonUnlocked(index);
     const isCompleted = isLessonCompleted(lesson.lessonId);
@@ -227,7 +214,7 @@ function createBookElement(lesson, index) {
     book.className = `book-card ${isUnlocked ? 'unlocked' : 'locked'}`;
     book.dataset.lessonId = lesson.lessonId;
     
-    const coverImg = lesson.imagePath || './images/placeholder.png';
+    const coverImg = lesson.imagePath || 'images/placeholder.png';
     const filterClass = isUnlocked ? '' : 'grayscale';
     
     book.innerHTML = `
@@ -247,13 +234,11 @@ function createBookElement(lesson, index) {
         book.style.cursor = 'pointer';
         book.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log(`📖 [BOOK-CLICK] Selected: ${lesson.lessonId}`);
             onBookClick(lesson.lessonId);
         });
     } else {
         book.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log(`🔒 [BOOK-CLICK] Locked: ${lesson.lessonId}`);
         });
     }
     
@@ -268,18 +253,15 @@ function createBookElement(lesson, index) {
  * Render the bookshelf view
  */
 async function renderBookshelf() {
-    console.log('🎨 [RENDER-BOOKSHELF] Starting...');
     
     // Verify data exists
     if (APP_STATE.allLessons.length === 0) {
-        console.warn('⚠️ [RENDER-BOOKSHELF] No lessons loaded, loading now...');
         await initApp();
         return;
     }
     
     const container = document.getElementById('app-container');
     if (!container) {
-        console.error('❌ [RENDER-BOOKSHELF] Container not found');
         return;
     }
     
@@ -305,10 +287,7 @@ async function renderBookshelf() {
             const bookElement = createBookElement(lesson, index);
             grid.appendChild(bookElement);
         });
-        
-        console.log(`✅ [RENDER-BOOKSHELF] Rendered ${APP_STATE.allLessons.length} books`);
     } catch (error) {
-        console.error('❌ [RENDER-BOOKSHELF] Error:', error);
         container.innerHTML = `<div style="padding:20px; color:red;">Error rendering bookshelf</div>`;
     }
 }
@@ -318,12 +297,10 @@ async function renderBookshelf() {
  * @param {string|number} lessonId - The lesson ID to load
  */
 function onBookClick(lessonId) {
-    console.log(`🎯 [ON-BOOK-CLICK] lessonId: ${lessonId}`);
     
     // Find lesson in data
     const lesson = APP_STATE.allLessons.find(l => l.lessonId === lessonId);
     if (!lesson) {
-        console.error(`❌ [ON-BOOK-CLICK] Lesson not found: ${lessonId}`);
         return;
     }
     
@@ -332,8 +309,6 @@ function onBookClick(lessonId) {
     APP_STATE.currentPage = 0;
     APP_STATE.totalPages = 0;
     APP_STATE.charProgress = {};
-    
-    console.log(`✅ [ON-BOOK-CLICK] Lesson loaded: ${lesson.title}`);
     switchView('lesson');
 }
 
@@ -341,23 +316,20 @@ function onBookClick(lessonId) {
  * Render the lesson view - with pre-rendered story content hidden behind entry page
  */
 async function renderLesson() {
-    console.log('🎨 [RENDER-LESSON] Starting...');
     
     // Verify lesson data
     if (!APP_STATE.currentLesson) {
-        console.error('❌ [RENDER-LESSON] No current lesson set');
         switchView('bookshelf');
         return;
     }
     
     const container = document.getElementById('app-container');
     if (!container) {
-        console.error('❌ [RENDER-LESSON] Container not found');
         return;
     }
     
     try {
-        const imageUrl = APP_STATE.currentLesson.imagePath || './images/placeholder.png';
+        const imageUrl = APP_STATE.currentLesson.imagePath || 'images/placeholder.png';
         
         container.innerHTML = `
             <!-- Background Scenery -->
@@ -410,10 +382,7 @@ async function renderLesson() {
         setupCharacterTracker();
         buildInteractiveStory();
         setupHintSystem();
-        
-        console.log(`✅ [RENDER-LESSON] Lesson view ready: ${APP_STATE.currentLesson.title}`);
     } catch (error) {
-        console.error('❌ [RENDER-LESSON] Error:', error);
         container.innerHTML = `<div style="padding:20px; color:red;">Error rendering lesson</div>`;
         setTimeout(() => switchView('bookshelf'), 2000);
     }
@@ -423,14 +392,12 @@ async function renderLesson() {
  * Start game - initialize story and show game container
  */
 function startGame() {
-    console.log('🎮 [START-GAME] Button clicked - revealing story');
     
     try {
         // Hide entry page overlay
         const entryPage = document.getElementById('entry-page');
         if (entryPage) {
             entryPage.style.display = 'none';
-            console.log('✅ [START-GAME] Entry page hidden');
         }
         
         // Show HUD and book viewport (story was pre-built in renderLesson)
@@ -444,10 +411,7 @@ function startGame() {
         
         // Show story (single scrollable view)
         showCurrentPage();
-        
-        console.log(`✅ [START-GAME] Story revealed and ready to play`);
     } catch (error) {
-        console.error('❌ [START-GAME] Error:', error);
     }
 }
 
@@ -455,7 +419,6 @@ function startGame() {
  * Setup character tracker HUD
  */
 function setupCharacterTracker() {
-    console.log('🎯 [SETUP-TRACKER] Initializing character hunt...');
     
     const inventory = document.getElementById('ui-inventory');
     inventory.innerHTML = '';
@@ -481,15 +444,12 @@ function setupCharacterTracker() {
     // Calculate hints as 15% of total characters to find, rounded up
     APP_STATE.hintsRemaining = Math.ceil(totalCharsToFind * 0.15);
     APP_STATE.maxHints = APP_STATE.hintsRemaining;
-    
-    console.log(`✅ [SETUP-TRACKER] Tracker ready. Total chars: ${totalCharsToFind}, Hints: ${APP_STATE.hintsRemaining}`);
 }
 
 /**
  * Setup hint system UI below the story
  */
 function setupHintSystem() {
-    console.log('💡 [HINT-SETUP] Initializing hint system...');
     
     const bookViewport = document.getElementById('book-viewport');
     if (!bookViewport) return;
@@ -549,8 +509,6 @@ function setupHintSystem() {
     `;
     
     bookViewport.parentNode.insertBefore(hintContainer, bookViewport.nextSibling);
-    
-    console.log(`✅ [HINT-SETUP] Hint system ready with 5 hints`);
 }
 
 /**
@@ -558,17 +516,13 @@ function setupHintSystem() {
  */
 function useHint() {
     if (APP_STATE.hintsRemaining <= 0) {
-        console.warn('⚠️ [HINT] No hints remaining');
         return;
     }
-    
-    console.log(`💡 [HINT] Using hint (${APP_STATE.hintsRemaining} remaining)`);
     
     // Find all unhidden seek characters on the page
     const unrevealedChars = Array.from(document.querySelectorAll('.hidden-char:not(.found)'));
     
     if (unrevealedChars.length === 0) {
-        console.log('💡 [HINT] All characters already found!');
         return;
     }
     
@@ -577,7 +531,6 @@ function useHint() {
     const char = randomChar.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
     
     if (char) {
-        console.log(`💡 [HINT] Revealing: ${char}`);
         // Simulate click to reveal the character
         window.captureCharacter(randomChar, char, null);
         // Apply hint-specific highlight
@@ -607,15 +560,12 @@ function useHint() {
             hintBtn.innerText = `💡 提示已用完 (0/${APP_STATE.maxHints})`;
         }
     }
-    
-    console.log(`✅ [HINT] Used hint. ${APP_STATE.hintsRemaining} remaining`);
 }
 
 /**
  * Build interactive story
  */
 function buildInteractiveStory() {
-    console.log('📖 [BUILD-STORY] Generating story HTML...');
     
     const storyHtml = buildStoryHtml(
         APP_STATE.currentLesson.storyText,
@@ -625,8 +575,6 @@ function buildInteractiveStory() {
     );
     
     document.getElementById('page-wrapper').innerHTML = storyHtml;
-    
-    console.log(`✅ [BUILD-STORY] Story ready (single scrollable view)`);
 }
 
 /**
@@ -639,10 +587,7 @@ function buildInteractiveStory() {
  */
 function buildStoryHtml(text, pinyin, vocabList, hiddenChars) {
     // Build a clean mapping of position -> pinyin
-    // Remove punctuation from pinyin syllables before mapping
-    const pinyinWords = pinyin.trim().split(/\s+/).map(py => 
-        py.replace(/[,.\n\r;:!?""''""（）()]/g, '').trim()
-    ).filter(py => py.length > 0);
+    const pinyinWords = pinyin.trim().split(/\s+/);
     const charToPinyinMap = new Map();
     
     // Extract all Chinese characters with their positions
@@ -722,7 +667,6 @@ function escapeHtml(text) {
  */
 function showCurrentPage() {
     // Story is already visible in the single scrollable view
-    console.log(`📖 [STORY-READY] Story ready for reading`);
 }
 
 /**
@@ -734,12 +678,10 @@ function showCurrentPage() {
  * Test completion screen - for development/testing
  */
 function testCompletion() {
-    console.log('🧪 [TEST] Triggering completion screen...');
     finishLesson();
 }
 
 function finishLesson() {
-    console.log('🎉 [FINISH-LESSON] Lesson complete!');
     
     completeLessonProgress(APP_STATE.currentLesson.lessonId);
     
@@ -785,7 +727,6 @@ function finishLesson() {
  * Test completion screen - for development/testing
  */
 function testCompletion() {
-    console.log('🧪 [TEST] Triggering completion screen...');
     finishLesson();
 }
 
@@ -796,7 +737,6 @@ function testCompletion() {
  * @param {string} pinyin - The pinyin
  */
 function showPopup(character, definition, pinyin) {
-    console.log(`📚 [POPUP] Showing: ${character}`);
     
     document.getElementById('p-word').innerText = character;
     document.getElementById('p-pinyin').innerText = pinyin || '';
@@ -834,8 +774,6 @@ function captureCharacter(element, char, evt) {
     element.style.setProperty('font-weight', '700', 'important');
     element.style.setProperty('text-shadow', '0 0 8px rgba(255, 107, 107, 0.5)', 'important');
     element.style.setProperty('filter', 'none', 'important');
-
-    console.log(`✨ [CAPTURE] ${char} - highlighted with bright coral`);
     
     if (APP_STATE.charProgress[char]) {
         APP_STATE.charProgress[char].found++;
@@ -898,7 +836,6 @@ function checkLessonCompletion() {
     );
     
     if (allFound && allChars.length > 0) {
-        console.log('🎯 [COMPLETION] All characters found! Lesson complete!');
         setTimeout(() => finishLesson(), 1000);
     }
 }

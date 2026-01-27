@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lesson Flow Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #222; color: #fff; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #444; border-radius: 4px; }
+        .pass { background: rgba(139, 195, 74, 0.2); color: #8BC34A; }
+        .fail { background: rgba(255, 82, 82, 0.2); color: #FF5252; }
+        h2 { margin-top: 20px; color: #FFD700; }
+        code { background: #111; padding: 2px 6px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Lesson Flow Validation</h1>
+    <p>Manual checklist for lesson rendering refactor</p>
+    
+    <h2>✅ Implementation Checklist</h2>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> renderLesson() now calls setupCharacterTracker() and buildInteractiveStory() immediately
+        <br><code>Line 368-369 in app.js</code>
+    </div>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> startGame() now only toggles visibility (no story building)
+        <br><code>Line 401-426 in app.js</code>
+    </div>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> showCurrentPage() function added to handle page visibility
+        <br><code>Line 562-578 in app.js</code>
+    </div>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> showCurrentPage exported to window
+        <br><code>Line 733 in app.js</code>
+    </div>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> Entry page overlay properly styled (z-index: 3000, position: fixed)
+        <br><code>Line 345 in app.js (renderLesson)</code>
+    </div>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> HUD, book-viewport, controls initially hidden (display: none)
+        <br><code>Lines 322, 333, 355 in app.js</code>
+    </div>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> .story-page.visible class ensures first page is shown initially
+        <br><code>style.css line 179</code>
+    </div>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> New test testLessonRenderingFlow() validates entire flow
+        <br><code>tests.js line 474+ (TEST 11)</code>
+    </div>
+    
+    <div class="test pass">
+        <strong>[DONE]</strong> index.html now calls initApp() on DOMContentLoaded
+        <br><code>index.html line 42-49</code>
+    </div>
+    
+    <h2>📋 Expected Behavior (After Click on Book)</h2>
+    
+    <ol>
+        <li><strong>Entry Page Visible</strong>
+            <br>User sees: Lesson title + "开始阅读" button overlay
+            <br>Behind overlay (but hidden): Full story pre-rendered in page-wrapper
+        </li>
+        <li><strong>User Clicks "开始阅读"</strong>
+            <br>startGame() is called
+        </li>
+        <li><strong>Entry Page Hides</strong>
+            <br>entry-page set to display: none
+        </li>
+        <li><strong>Story Revealed</strong>
+            <br>HUD displays character count
+            <br>book-viewport displays story (first page already marked .visible)
+            <br>controls (nav buttons) displayed at bottom
+        </li>
+        <li><strong>Interactive Mode Active</strong>
+            <br>Seek characters are clickable
+            <br>Vocabulary words trigger popups
+            <br>Next/prev buttons work for pagination
+        </li>
+    </ol>
+    
+    <h2>🔍 Technical Verification</h2>
+    
+    <p><strong>DOM Structure on Lesson Entry (Before Button):</strong></p>
+    <pre>
+#app-container
+├── #scenery (background image, fixed)
+├── #hud (hidden with display: none)
+├── #book-viewport (hidden with display: none)
+├── #entry-page (visible, z-index: 3000)
+│   ├── h1 (lesson title)
+│   ├── button.start-btn (onclick=startGame)
+│   └── button (return to bookshelf)
+├── #controls (hidden with display: none)
+├── #p-overlay (vocab popup, hidden)
+├── #popup (vocab popup container, hidden)
+└── #firework-overlay (victory screen, hidden)
+    </pre>
+    
+    <p><strong>Inside #page-wrapper (Hidden Behind Overlay):</strong></p>
+    <pre>
+.story-page (id=pg-0)
+├── ruby (character with pinyin)
+├── ruby.seek-character (onclick=captureCharacter)
+├── span.vocab (onclick=showPopup)
+└── ... [all story content pre-rendered]
+
+.story-page (id=pg-1)
+└── ... [second page, hidden until nextPage clicked]
+    </pre>
+    
+    <h2>✨ Key Differences from Previous (Broken) Version</h2>
+    
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr style="background: #333;">
+            <th style="border: 1px solid #555; padding: 8px;">Aspect</th>
+            <th style="border: 1px solid #555; padding: 8px;">BROKEN (Before)</th>
+            <th style="border: 1px solid #555; padding: 8px;">FIXED (Now)</th>
+        </tr>
+        <tr>
+            <td style="border: 1px solid #555; padding: 8px;">Story Build Timing</td>
+            <td style="border: 1px solid #555; padding: 8px; color: #FF5252;">After startGame() click</td>
+            <td style="border: 1px solid #555; padding: 8px; color: #8BC34A;">In renderLesson() (immediate)</td>
+        </tr>
+        <tr>
+            <td style="border: 1px solid #555; padding: 8px;">Entry Page Display</td>
+            <td style="border: 1px solid #555; padding: 8px; color: #FF5252;">Showed empty (no story HTML yet)</td>
+            <td style="border: 1px solid #555; padding: 8px; color: #8BC34A;">Shows with story behind overlay</td>
+        </tr>
+        <tr>
+            <td style="border: 1px solid #555; padding: 8px;">DOM Structure</td>
+            <td style="border: 1px solid #555; padding: 8px; color: #FF5252;">Entry + hidden game-container</td>
+            <td style="border: 1px solid #555; padding: 8px; color: #8BC34A;">Entry overlay + pre-built story</td>
+        </tr>
+        <tr>
+            <td style="border: 1px solid #555; padding: 8px;">startGame() Logic</td>
+            <td style="border: 1px solid #555; padding: 8px; color: #FF5252;">Hide entry + build story</td>
+            <td style="border: 1px solid #555; padding: 8px; color: #8BC34A;">Just toggle visibility</td>
+        </tr>
+    </table>
+    
+    <h2>📝 Testing Instructions</h2>
+    
+    <ol>
+        <li><strong>Start local server:</strong> <code>python3 -m http.server 5500</code></li>
+        <li><strong>Open browser:</strong> http://localhost:5500/index.html</li>
+        <li><strong>Click any unlocked book</strong> → Entry page should show with lesson title + button</li>
+        <li><strong>Behind the overlay:</strong> Story text visible through semi-transparent gradient</li>
+        <li><strong>Click "开始阅读":</strong> Entry page fades, story becomes interactive</li>
+        <li><strong>Try clicking seek characters:</strong> Should highlight with sparkle effect</li>
+        <li><strong>Try clicking vocab words:</strong> Should show definition popup</li>
+        <li><strong>Run tests from console:</strong> <code>runAllTests()</code> → TEST 11 validates entire flow</li>
+    </ol>
+    
+    <h2>🐛 Debugging Commands (Browser Console)</h2>
+    
+    <pre style="background: #111; padding: 10px; border-radius: 4px; overflow: auto;">
+// Check if story was pre-rendered
+window.APP_STATE.allLessons[0]
+window.APP_STATE.currentLesson
+document.getElementById('page-wrapper')?.innerHTML?.length
+
+// Test the entire flow
+await runAllTests()
+
+// Manually trigger story build
+window.APP_STATE.currentLesson = window.APP_STATE.allLessons[0]
+window.switchView('lesson')
+await new Promise(r => setTimeout(r, 500))
+document.querySelectorAll('.story-page').length
+
+// Check if entry page is hiding correctly
+window.startGame()
+document.getElementById('entry-page').style.display
+    </pre>
+    
+</body>
+</html>

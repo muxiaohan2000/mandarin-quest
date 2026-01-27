@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Loading Debugger</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #00ff00;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2d2d2d;
+            border-left: 4px solid #00ff00;
+        }
+        .pass { color: #00ff00; }
+        .fail { color: #ff0000; }
+        .warn { color: #ffaa00; }
+        .info { color: #00aaff; }
+        h2 { color: #00aaff; border-bottom: 2px solid #00aaff; }
+        pre { background: #1a1a1a; padding: 10px; overflow-x: auto; }
+        img { max-width: 400px; border: 2px solid #00ff00; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Image Loading Diagnostic Tool</h1>
+    
+    <div id="results"></div>
+    <div id="image-tests"></div>
+
+    <script src="app.js"></script>
+    <script>
+        const results = document.getElementById('results');
+        const imageTests = document.getElementById('image-tests');
+
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = msg;
+            results.appendChild(div);
+        }
+
+        function section(title) {
+            const div = document.createElement('div');
+            div.className = 'section';
+            div.innerHTML = `<h2>${title}</h2>`;
+            results.appendChild(div);
+            return div;
+        }
+
+        async function runDiagnostics() {
+            // === TEST 1: Load data.json ===
+            const s1 = section('1️⃣ Data Loading Check');
+            
+            try {
+                const response = await fetch('data.json');
+                log(`✅ fetch('data.json') status: ${response.status}`, 'pass');
+                
+                const data = await response.json();
+                log(`✅ JSON parsed successfully`, 'pass');
+                log(`📊 Total lessons: ${data.length}`, 'info');
+                
+                const lesson1 = data[0];
+                s1.innerHTML += `<pre>${JSON.stringify(lesson1, null, 2).substring(0, 500)}...</pre>`;
+                
+                // Check fields
+                log(`<br><strong>Field Validation:</strong>`, 'info');
+                log(`  lessonId: ${lesson1.lessonId ? '✅' : '❌'} = "${lesson1.lessonId}"`, lesson1.lessonId ? 'pass' : 'fail');
+                log(`  title: ${lesson1.title ? '✅' : '❌'} = "${lesson1.title}"`, lesson1.title ? 'pass' : 'fail');
+                log(`  hero: ${lesson1.hero ? '✅' : '❌'} = "${lesson1.hero}"`, lesson1.hero ? 'pass' : 'fail');
+                log(`  imageId: ${lesson1.imageId ? '✅' : '❌'} = "${lesson1.imageId}"`, lesson1.imageId ? 'pass' : 'fail');
+                log(`  imageUrl (old): ${lesson1.imageUrl ? '⚠️ SHOULD NOT EXIST' : '✅ Removed'} = "${lesson1.imageUrl || 'N/A'}"`, lesson1.imageUrl ? 'warn' : 'pass');
+                
+                // === TEST 2: getMaskedImage Function ===
+                const s2 = section('2️⃣ getMaskedImage() Function Check');
+                
+                if (typeof getMaskedImage !== 'function') {
+                    log('❌ getMaskedImage() is NOT defined globally', 'fail');
+                } else {
+                    log('✅ getMaskedImage() function exists', 'pass');
+                    
+                    // Test with actual ID from data
+                    const testId = lesson1.imageId;
+                    log(`<br><strong>Testing with actual ID:</strong> "${testId}"`, 'info');
+                    
+                    const generatedUrl = getMaskedImage(testId);
+                    log(`  Input ID: ${testId}`, 'info');
+                    log(`  Output URL: ${generatedUrl}`, 'info');
+                    
+                    if (generatedUrl.includes('googleusercontent.com')) {
+                        log(`  ✅ URL contains Google domain`, 'pass');
+                    } else {
+                        log(`  ❌ URL doesn't contain Google domain`, 'fail');
+                    }
+                    
+                    if (generatedUrl.includes(testId)) {
+                        log(`  ✅ URL contains the image ID`, 'pass');
+                    } else {
+                        log(`  ❌ URL doesn't contain the image ID`, 'fail');
+                    }
+                    
+                    // Test with empty ID
+                    const emptyResult = getMaskedImage('');
+                    log(`<br><strong>Testing with empty ID:</strong>`, 'info');
+                    log(`  Result: ${emptyResult}`, emptyResult.includes('placeholder') ? 'pass' : 'fail');
+                }
+                
+                // === TEST 3: Actual Image Loading ===
+                const s3 = section('3️⃣ Real Image Loading Test');
+                
+                const testImageId = lesson1.imageId;
+                const testUrl = getMaskedImage(testImageId);
+                
+                log(`<br><strong>Attempting to load image:</strong>`, 'info');
+                log(`  Image ID: ${testImageId}`, 'info');
+                log(`  Full URL: ${testUrl}`, 'info');
+                
+                // Create test image
+                const imgContainer = document.createElement('div');
+                imgContainer.innerHTML = '<h3>Image Preview Test:</h3>';
+                
+                const img = document.createElement('img');
+                img.src = testUrl;
+                
+                img.onload = () => {
+                    log(`✅ Image loaded successfully!`, 'pass');
+                    log(`  Dimensions: ${img.naturalWidth}x${img.naturalHeight}`, 'info');
+                    imgContainer.appendChild(img);
+                };
+                
+                img.onerror = (e) => {
+                    log(`❌ Image failed to load`, 'fail');
+                    log(`  Error event: ${e.type}`, 'fail');
+                    log(`  Possible causes:`, 'warn');
+                    log(`    1. Invalid Google Drive ID`, 'warn');
+                    log(`    2. Image not publicly accessible`, 'warn');
+                    log(`    3. CORS restrictions`, 'warn');
+                    log(`    4. Network issue`, 'warn');
+                    
+                    // Try alternative URL format
+                    const altUrl = `https://drive.google.com/uc?export=view&id=${testImageId}`;
+                    log(`<br><strong>Trying alternative URL format:</strong>`, 'info');
+                    log(`  ${altUrl}`, 'info');
+                    
+                    const altImg = document.createElement('img');
+                    altImg.src = altUrl;
+                    altImg.onload = () => {
+                        log(`  ✅ Alternative format works!`, 'pass');
+                        imgContainer.appendChild(altImg);
+                    };
+                    altImg.onerror = () => {
+                        log(`  ❌ Alternative format also failed`, 'fail');
+                    };
+                };
+                
+                s3.appendChild(imgContainer);
+                
+                // === TEST 4: Check Browser Console ===
+                const s4 = section('4️⃣ Browser Console Check');
+                log(`Open browser DevTools (F12) and check:`, 'info');
+                log(`  1. Console tab for errors`, 'info');
+                log(`  2. Network tab for failed requests`, 'info');
+                log(`  3. Look for CORS errors`, 'warn');
+                
+                // === TEST 5: Data.json First Lesson Full Dump ===
+                const s5 = section('5️⃣ Complete First Lesson Data');
+                s5.innerHTML += `<pre>${JSON.stringify(lesson1, null, 2)}</pre>`;
+                
+            } catch (error) {
+                log(`❌ CRITICAL ERROR: ${error.message}`, 'fail');
+                log(`Stack: ${error.stack}`, 'fail');
+            }
+        }
+
+        // Run diagnostics
+        runDiagnostics();
+    </script>
+</body>
+</html>
