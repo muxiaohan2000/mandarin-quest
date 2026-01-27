@@ -584,7 +584,8 @@ ruby.hidden-char.found,
 /* === VOCAB AND SEEK STYLES === */
 .vocab-word {
     color: #E8860F;
-    text-decoration: underline;
+    text-decoration: none;
+    border-bottom: 2px solid #E8860F;
     cursor: pointer;
     font-weight: bold;
     transition: all 0.2s ease;
