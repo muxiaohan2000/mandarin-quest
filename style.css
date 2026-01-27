@@ -584,8 +584,14 @@ ruby.hidden-char.found,
 /* === VOCAB AND SEEK STYLES === */
 .vocab-word {
     color: #E8860F;
-    text-decoration: none;
-    border-bottom: 2px solid #E8860F;
+    text-decoration: none !important;
+    border-bottom: none;
+    display: inline-block;
+    padding-bottom: 2px;
+    background-image: linear-gradient(#E8860F, #E8860F);
+    background-size: 100% 2px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
     cursor: pointer;
     font-weight: bold;
     transition: all 0.2s ease;
