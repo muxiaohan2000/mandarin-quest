@@ -599,6 +599,8 @@ ruby.hidden-char.found,
 ruby {
     display: inline-ruby;
     ruby-position: over;
+    -webkit-ruby-position: before;
+    ruby-align: center;
     margin: 0 4px;
 }
 
@@ -612,13 +614,17 @@ ruby > rt {
 /* For browsers that don't support ruby well */
 @supports not (display: ruby) {
     ruby {
-        display: inline-block;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
         text-align: center;
         vertical-align: bottom;
     }
     
     ruby > rt {
         display: block;
+        order: -1;
         font-size: 0.5em;
         line-height: 1.2;
     }
