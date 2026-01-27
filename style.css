@@ -611,6 +611,23 @@ ruby > rt {
     line-height: 1;
 }
 
+/* iOS WebKit (Chrome/Safari) ruby positioning fix */
+@supports (-webkit-touch-callout: none) {
+    ruby {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        line-height: 1.1;
+    }
+
+    ruby > rt {
+        display: block;
+        order: -1;
+        margin-bottom: 0.1em;
+    }
+}
+
 /* For browsers that don't support ruby well */
 @supports not (display: ruby) {
     ruby {
